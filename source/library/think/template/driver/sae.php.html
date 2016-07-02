@@ -1,0 +1,170 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\template\driver\Sae.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\template\driver\sae.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\template\driver\Sae.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\template\driver;
+<a name="line13"></a>
+<a name="line14"></a>use think\Exception;
+<a name="line15"></a>
+<a name="line16"></a>class Sae
+<a name="line17"></a>{
+<a name="line18"></a>    // mc 对象
+<a name="line19"></a>    private $mc;
+<a name="line20"></a>    // 编译缓存内容
+<a name="line21"></a>    private $contents = [];
+<a name="line22"></a>
+<a name="line23"></a>    /**
+<a name="line24"></a>     * 架构函数
+<a name="line25"></a>     * @access public
+<a name="line26"></a>     */
+<a name="line27"></a>    public function __construct()
+<a name="line28"></a>    {
+<a name="line29"></a>        if (!function_exists('memcache_init')) {
+<a name="line30"></a>            throw new Exception('请在SAE平台上运行代码。');
+<a name="line31"></a>        }
+<a name="line32"></a>        $this->mc = @memcache_init();
+<a name="line33"></a>        if (!$this->mc) {
+<a name="line34"></a>            throw new Exception('您未开通Memcache服务，请在SAE管理平台初始化Memcache服务');
+<a name="line35"></a>        }
+<a name="line36"></a>    }
+<a name="line37"></a>
+<a name="line38"></a>    /**
+<a name="line39"></a>     * 写入编译缓存
+<a name="line40"></a>     * @param string $cacheFile 缓存的文件名
+<a name="line41"></a>     * @param string $content 缓存的内容
+<a name="line42"></a>     * @return void|array
+<a name="line43"></a>     */
+<a name="line44"></a>    public function write($cacheFile, $content)
+<a name="line45"></a>    {
+<a name="line46"></a>        // 添加写入时间
+<a name="line47"></a>        $content = time() . $content;
+<a name="line48"></a>        if (!$this->mc->set($cacheFile, $content, MEMCACHE_COMPRESSED, 0)) {
+<a name="line49"></a>            throw new Exception('sae mc write error:' . $cacheFile);
+<a name="line50"></a>        } else {
+<a name="line51"></a>            $this->contents[$cacheFile] = $content;
+<a name="line52"></a>            return true;
+<a name="line53"></a>        }
+<a name="line54"></a>    }
+<a name="line55"></a>
+<a name="line56"></a>    /**
+<a name="line57"></a>     * 读取编译编译
+<a name="line58"></a>     * @param string  $cacheFile 缓存的文件名
+<a name="line59"></a>     * @param array   $vars 变量数组
+<a name="line60"></a>     * @return void
+<a name="line61"></a>     */
+<a name="line62"></a>    public function read($cacheFile, $vars = [])
+<a name="line63"></a>    {
+<a name="line64"></a>        if (!empty($vars) && is_array($vars)) {
+<a name="line65"></a>            extract($vars, EXTR_OVERWRITE);
+<a name="line66"></a>        }
+<a name="line67"></a>        eval('?>' . $this->get($cacheFile, 'content'));
+<a name="line68"></a>    }
+<a name="line69"></a>
+<a name="line70"></a>    /**
+<a name="line71"></a>     * 检查编译缓存是否有效
+<a name="line72"></a>     * @param string  $cacheFile 缓存的文件名
+<a name="line73"></a>     * @param int     $cacheTime 缓存时间
+<a name="line74"></a>     * @return boolean
+<a name="line75"></a>     */
+<a name="line76"></a>    public function check($cacheFile, $cacheTime)
+<a name="line77"></a>    {
+<a name="line78"></a>        $mtime = $this->get($cacheFile, 'mtime');
+<a name="line79"></a>        if (0 != $cacheTime && time() > $mtime + $cacheTime) {
+<a name="line80"></a>            // 缓存是否在有效期
+<a name="line81"></a>            return false;
+<a name="line82"></a>        }
+<a name="line83"></a>        return true;
+<a name="line84"></a>    }
+<a name="line85"></a>
+<a name="line86"></a>    /**
+<a name="line87"></a>     * 读取文件信息
+<a name="line88"></a>     * @access private
+<a name="line89"></a>     * @param string $filename  文件名
+<a name="line90"></a>     * @param string $name  信息名 mtime或者content
+<a name="line91"></a>     * @return boolean
+<a name="line92"></a>     */
+<a name="line93"></a>    private function get($filename, $name)
+<a name="line94"></a>    {
+<a name="line95"></a>        if (!isset($this->contents[$filename])) {
+<a name="line96"></a>            $this->contents[$filename] = $this->mc->get($filename);
+<a name="line97"></a>        }
+<a name="line98"></a>        $content = $this->contents[$filename];
+<a name="line99"></a>
+<a name="line100"></a>        if (false === $content) {
+<a name="line101"></a>            return false;
+<a name="line102"></a>        }
+<a name="line103"></a>        $info = array(
+<a name="line104"></a>            'mtime'   => substr($content, 0, 10),
+<a name="line105"></a>            'content' => substr($content, 10),
+<a name="line106"></a>        );
+<a name="line107"></a>        return $info[$name];
+<a name="line108"></a>    }
+<a name="line109"></a>}
+<a name="line110"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\template\driver\sae.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

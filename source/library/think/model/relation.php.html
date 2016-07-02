@@ -1,0 +1,747 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\model\Relation.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\model\relation.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\model\Relation.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\model;
+<a name="line13"></a>
+<a name="line14"></a>use think\Db;
+<a name="line15"></a>use think\Exception;
+<a name="line16"></a>use think\Loader;
+<a name="line17"></a>use think\Model;
+<a name="line18"></a>use think\model\Pivot;
+<a name="line19"></a>
+<a name="line20"></a>class Relation
+<a name="line21"></a>{
+<a name="line22"></a>    const HAS_ONE          = 1;
+<a name="line23"></a>    const HAS_MANY         = 2;
+<a name="line24"></a>    const HAS_MANY_THROUGH = 5;
+<a name="line25"></a>    const BELONGS_TO       = 3;
+<a name="line26"></a>    const BELONGS_TO_MANY  = 4;
+<a name="line27"></a>
+<a name="line28"></a>    // 父模型对象
+<a name="line29"></a>    protected $parent;
+<a name="line30"></a>    /** @var  Model 当前关联的模型类 */
+<a name="line31"></a>    protected $model;
+<a name="line32"></a>    // 中间表模型
+<a name="line33"></a>    protected $middle;
+<a name="line34"></a>    // 当前关联类型
+<a name="line35"></a>    protected $type;
+<a name="line36"></a>    // 关联表外键
+<a name="line37"></a>    protected $foreignKey;
+<a name="line38"></a>    // 中间关联表外键
+<a name="line39"></a>    protected $throughKey;
+<a name="line40"></a>    // 关联表主键
+<a name="line41"></a>    protected $localKey;
+<a name="line42"></a>    // 数据表别名
+<a name="line43"></a>    protected $alias;
+<a name="line44"></a>    // 当前关联的JOIN类型
+<a name="line45"></a>    protected $joinType;
+<a name="line46"></a>
+<a name="line47"></a>    /**
+<a name="line48"></a>     * 架构函数
+<a name="line49"></a>     * @access public
+<a name="line50"></a>     * @param Model $model 上级模型对象
+<a name="line51"></a>     */
+<a name="line52"></a>    public function __construct(Model $model)
+<a name="line53"></a>    {
+<a name="line54"></a>        $this->parent = $model;
+<a name="line55"></a>    }
+<a name="line56"></a>
+<a name="line57"></a>    /**
+<a name="line58"></a>     * 获取当前关联信息
+<a name="line59"></a>     * @access public
+<a name="line60"></a>     * @param string $name 关联信息
+<a name="line61"></a>     * @return array|string|integer
+<a name="line62"></a>     */
+<a name="line63"></a>    public function getRelationInfo($name = '')
+<a name="line64"></a>    {
+<a name="line65"></a>        $info = [
+<a name="line66"></a>            'type'       => $this->type,
+<a name="line67"></a>            'model'      => $this->model,
+<a name="line68"></a>            'middle'     => $this->middle,
+<a name="line69"></a>            'foreignKey' => $this->foreignKey,
+<a name="line70"></a>            'localKey'   => $this->localKey,
+<a name="line71"></a>            'alias'      => $this->alias,
+<a name="line72"></a>            'joinType'   => $this->joinType,
+<a name="line73"></a>        ];
+<a name="line74"></a>        return $name ? $info[$name] : $info;
+<a name="line75"></a>    }
+<a name="line76"></a>
+<a name="line77"></a>    // 获取关联数据
+<a name="line78"></a>    public function getRelation($name)
+<a name="line79"></a>    {
+<a name="line80"></a>        // 执行关联定义方法
+<a name="line81"></a>        $relation   = $this->parent->$name();
+<a name="line82"></a>        $foreignKey = $this->foreignKey;
+<a name="line83"></a>        $localKey   = $this->localKey;
+<a name="line84"></a>
+<a name="line85"></a>        // 判断关联类型执行查询
+<a name="line86"></a>        switch ($this->type) {
+<a name="line87"></a>            case self::HAS_ONE:
+<a name="line88"></a>                $result = $relation->where($foreignKey, $this->parent->$localKey)->find();
+<a name="line89"></a>                break;
+<a name="line90"></a>            case self::BELONGS_TO:
+<a name="line91"></a>                $result = $relation->where($localKey, $this->parent->$foreignKey)->find();
+<a name="line92"></a>                break;
+<a name="line93"></a>            case self::HAS_MANY:
+<a name="line94"></a>                $result = $relation->select();
+<a name="line95"></a>                break;
+<a name="line96"></a>            case self::HAS_MANY_THROUGH:
+<a name="line97"></a>                $result = $relation->select();
+<a name="line98"></a>                break;
+<a name="line99"></a>            case self::BELONGS_TO_MANY:
+<a name="line100"></a>                // 关联查询
+<a name="line101"></a>                $pk                              = $this->parent->getPk();
+<a name="line102"></a>                $condition['pivot.' . $localKey] = $this->parent->$pk;
+<a name="line103"></a>                $result                          = $this->belongsToManyQuery($relation, $this->middle, $foreignKey, $localKey, $condition)->select();
+<a name="line104"></a>                foreach ($result as $set) {
+<a name="line105"></a>                    $pivot = [];
+<a name="line106"></a>                    foreach ($set->toArray() as $key => $val) {
+<a name="line107"></a>                        if (strpos($key, '__')) {
+<a name="line108"></a>                            list($name, $attr) = explode('__', $key, 2);
+<a name="line109"></a>                            if ('pivot' == $name) {
+<a name="line110"></a>                                $pivot[$attr] = $val;
+<a name="line111"></a>                                unset($set->$key);
+<a name="line112"></a>                            }
+<a name="line113"></a>                        }
+<a name="line114"></a>                    }
+<a name="line115"></a>                    $set->pivot = new Pivot($pivot, $this->middle);
+<a name="line116"></a>                }
+<a name="line117"></a>                break;
+<a name="line118"></a>            default:
+<a name="line119"></a>                // 直接返回
+<a name="line120"></a>                $result = $relation;
+<a name="line121"></a>        }
+<a name="line122"></a>        return $result;
+<a name="line123"></a>    }
+<a name="line124"></a>
+<a name="line125"></a>    /**
+<a name="line126"></a>     * 预载入关联查询 返回数据集
+<a name="line127"></a>     * @access public
+<a name="line128"></a>     * @param array     $resultSet 数据集
+<a name="line129"></a>     * @param string    $relation 关联名
+<a name="line130"></a>     * @param string    $class 数据集对象名 为空表示数组
+<a name="line131"></a>     * @return array
+<a name="line132"></a>     */
+<a name="line133"></a>    public function eagerlyResultSet($resultSet, $relation, $class = '')
+<a name="line134"></a>    {
+<a name="line135"></a>        /** @var array $relations */
+<a name="line136"></a>        $relations = is_string($relation) ? explode(',', $relation) : $relation;
+<a name="line137"></a>
+<a name="line138"></a>        foreach ($relations as $key => $relation) {
+<a name="line139"></a>            $subRelation = '';
+<a name="line140"></a>            $closure     = false;
+<a name="line141"></a>            if ($relation instanceof \Closure) {
+<a name="line142"></a>                $closure  = $relation;
+<a name="line143"></a>                $relation = $key;
+<a name="line144"></a>            }
+<a name="line145"></a>            if (strpos($relation, '.')) {
+<a name="line146"></a>                list($relation, $subRelation) = explode('.', $relation);
+<a name="line147"></a>            }
+<a name="line148"></a>            // 执行关联方法
+<a name="line149"></a>            $model = $this->parent->$relation();
+<a name="line150"></a>            // 获取关联信息
+<a name="line151"></a>            $localKey   = $this->localKey;
+<a name="line152"></a>            $foreignKey = $this->foreignKey;
+<a name="line153"></a>            switch ($this->type) {
+<a name="line154"></a>                case self::HAS_ONE:
+<a name="line155"></a>                case self::BELONGS_TO:
+<a name="line156"></a>                    foreach ($resultSet as $result) {
+<a name="line157"></a>                        // 模型关联组装
+<a name="line158"></a>                        $this->match($this->model, $relation, $result);
+<a name="line159"></a>                    }
+<a name="line160"></a>                    break;
+<a name="line161"></a>                case self::HAS_MANY:
+<a name="line162"></a>                    $range = [];
+<a name="line163"></a>                    foreach ($resultSet as $result) {
+<a name="line164"></a>                        // 获取关联外键列表
+<a name="line165"></a>                        if (isset($result->$localKey)) {
+<a name="line166"></a>                            $range[] = $result->$localKey;
+<a name="line167"></a>                        }
+<a name="line168"></a>                    }
+<a name="line169"></a>
+<a name="line170"></a>                    if (!empty($range)) {
+<a name="line171"></a>                        $data = $this->eagerlyOneToMany($model, [
+<a name="line172"></a>                            $foreignKey => [
+<a name="line173"></a>                                'in',
+<a name="line174"></a>                                $range,
+<a name="line175"></a>                            ],
+<a name="line176"></a>                        ], $relation, $subRelation, $closure);
+<a name="line177"></a>
+<a name="line178"></a>                        // 关联数据封装
+<a name="line179"></a>                        foreach ($resultSet as $result) {
+<a name="line180"></a>                            if (!isset($data[$result->$localKey])) {
+<a name="line181"></a>                                $data[$result->$localKey] = [];
+<a name="line182"></a>                            }
+<a name="line183"></a>                            $result->setAttr($relation, $this->resultSetBuild($data[$result->$localKey], $class));
+<a name="line184"></a>                        }
+<a name="line185"></a>                    }
+<a name="line186"></a>                    break;
+<a name="line187"></a>                case self::BELONGS_TO_MANY:
+<a name="line188"></a>                    $pk    = $resultSet[0]->getPk();
+<a name="line189"></a>                    $range = [];
+<a name="line190"></a>                    foreach ($resultSet as $result) {
+<a name="line191"></a>                        // 获取关联外键列表
+<a name="line192"></a>                        if (isset($result->$pk)) {
+<a name="line193"></a>                            $range[] = $result->$pk;
+<a name="line194"></a>                        }
+<a name="line195"></a>                    }
+<a name="line196"></a>
+<a name="line197"></a>                    if (!empty($range)) {
+<a name="line198"></a>                        // 查询关联数据
+<a name="line199"></a>                        $data = $this->eagerlyManyToMany($model, [
+<a name="line200"></a>                            'pivot.' . $foreignKey => [
+<a name="line201"></a>                                'in',
+<a name="line202"></a>                                $range,
+<a name="line203"></a>                            ],
+<a name="line204"></a>                        ], $relation, $subRelation);
+<a name="line205"></a>
+<a name="line206"></a>                        // 关联数据封装
+<a name="line207"></a>                        foreach ($resultSet as $result) {
+<a name="line208"></a>                            if (!isset($data[$result->$pk])) {
+<a name="line209"></a>                                $data[$result->$pk] = [];
+<a name="line210"></a>                            }
+<a name="line211"></a>
+<a name="line212"></a>                            $result->setAttr($relation, $this->resultSetBuild($data[$result->$pk], $class));
+<a name="line213"></a>                        }
+<a name="line214"></a>                    }
+<a name="line215"></a>                    break;
+<a name="line216"></a>            }
+<a name="line217"></a>        }
+<a name="line218"></a>        return $resultSet;
+<a name="line219"></a>    }
+<a name="line220"></a>
+<a name="line221"></a>    /**
+<a name="line222"></a>     * 封装关联数据集
+<a name="line223"></a>     * @access public
+<a name="line224"></a>     * @param array     $resultSet 数据集
+<a name="line225"></a>     * @param string    $class 数据集类名
+<a name="line226"></a>     * @return mixed
+<a name="line227"></a>     */
+<a name="line228"></a>    protected function resultSetBuild($resultSet, $class = '')
+<a name="line229"></a>    {
+<a name="line230"></a>        return $class ? new $class($resultSet) : $resultSet;
+<a name="line231"></a>    }
+<a name="line232"></a>
+<a name="line233"></a>    /**
+<a name="line234"></a>     * 预载入关联查询 返回模型对象
+<a name="line235"></a>     * @access public
+<a name="line236"></a>     * @param Model     $result 数据对象
+<a name="line237"></a>     * @param string    $relation 关联名
+<a name="line238"></a>     * @param string    $class 数据集对象名 为空表示数组
+<a name="line239"></a>     * @return Model
+<a name="line240"></a>     */
+<a name="line241"></a>    public function eagerlyResult($result, $relation, $class = '')
+<a name="line242"></a>    {
+<a name="line243"></a>        $relations = is_string($relation) ? explode(',', $relation) : $relation;
+<a name="line244"></a>
+<a name="line245"></a>        foreach ($relations as $key => $relation) {
+<a name="line246"></a>            $subRelation = '';
+<a name="line247"></a>            $closure     = false;
+<a name="line248"></a>            if ($relation instanceof \Closure) {
+<a name="line249"></a>                $closure  = $relation;
+<a name="line250"></a>                $relation = $key;
+<a name="line251"></a>            }
+<a name="line252"></a>            if (strpos($relation, '.')) {
+<a name="line253"></a>                list($relation, $subRelation) = explode('.', $relation);
+<a name="line254"></a>            }
+<a name="line255"></a>            // 执行关联方法
+<a name="line256"></a>            $model      = $this->parent->$relation();
+<a name="line257"></a>            $localKey   = $this->localKey;
+<a name="line258"></a>            $foreignKey = $this->foreignKey;
+<a name="line259"></a>            switch ($this->type) {
+<a name="line260"></a>                case self::HAS_ONE:
+<a name="line261"></a>                case self::BELONGS_TO:
+<a name="line262"></a>                    // 模型关联组装
+<a name="line263"></a>                    $this->match($this->model, $relation, $result);
+<a name="line264"></a>                    break;
+<a name="line265"></a>                case self::HAS_MANY:
+<a name="line266"></a>                    if (isset($result->$localKey)) {
+<a name="line267"></a>                        $data = $this->eagerlyOneToMany($model, [$foreignKey => $result->$localKey], $relation, $subRelation, $closure);
+<a name="line268"></a>                        // 关联数据封装
+<a name="line269"></a>                        if (!isset($data[$result->$localKey])) {
+<a name="line270"></a>                            $data[$result->$localKey] = [];
+<a name="line271"></a>                        }
+<a name="line272"></a>                        $result->setAttr($relation, $this->resultSetBuild($data[$result->$localKey], $class));
+<a name="line273"></a>                    }
+<a name="line274"></a>                    break;
+<a name="line275"></a>                case self::BELONGS_TO_MANY:
+<a name="line276"></a>                    $pk = $result->getPk();
+<a name="line277"></a>                    if (isset($result->$pk)) {
+<a name="line278"></a>                        $pk = $result->$pk;
+<a name="line279"></a>                        // 查询管理数据
+<a name="line280"></a>                        $data = $this->eagerlyManyToMany($model, ['pivot.' . $foreignKey => $pk], $relation, $subRelation);
+<a name="line281"></a>
+<a name="line282"></a>                        // 关联数据封装
+<a name="line283"></a>                        if (!isset($data[$pk])) {
+<a name="line284"></a>                            $data[$pk] = [];
+<a name="line285"></a>                        }
+<a name="line286"></a>                        $result->setAttr($relation, $this->resultSetBuild($data[$pk], $class));
+<a name="line287"></a>                    }
+<a name="line288"></a>                    break;
+<a name="line289"></a>
+<a name="line290"></a>            }
+<a name="line291"></a>        }
+<a name="line292"></a>        return $result;
+<a name="line293"></a>    }
+<a name="line294"></a>
+<a name="line295"></a>    /**
+<a name="line296"></a>     * 一对一 关联模型预查询拼装
+<a name="line297"></a>     * @access public
+<a name="line298"></a>     * @param string    $model 模型名称
+<a name="line299"></a>     * @param string    $relation 关联名
+<a name="line300"></a>     * @param Model     $result 模型对象实例
+<a name="line301"></a>     * @return void
+<a name="line302"></a>     */
+<a name="line303"></a>    protected function match($model, $relation, &$result)
+<a name="line304"></a>    {
+<a name="line305"></a>        // 重新组装模型数据
+<a name="line306"></a>        foreach ($result->toArray() as $key => $val) {
+<a name="line307"></a>            if (strpos($key, '__')) {
+<a name="line308"></a>                list($name, $attr) = explode('__', $key, 2);
+<a name="line309"></a>                if ($name == $relation) {
+<a name="line310"></a>                    $list[$name][$attr] = $val;
+<a name="line311"></a>                    unset($result->$key);
+<a name="line312"></a>                }
+<a name="line313"></a>            }
+<a name="line314"></a>        }
+<a name="line315"></a>
+<a name="line316"></a>        if (!isset($list[$relation])) {
+<a name="line317"></a>            // 设置关联模型属性
+<a name="line318"></a>            $list[$relation] = [];
+<a name="line319"></a>        }
+<a name="line320"></a>        $result->setAttr($relation, new $model($list[$relation]));
+<a name="line321"></a>    }
+<a name="line322"></a>
+<a name="line323"></a>    /**
+<a name="line324"></a>     * 一对多 关联模型预查询
+<a name="line325"></a>     * @access public
+<a name="line326"></a>     * @param object    $model 关联模型对象
+<a name="line327"></a>     * @param array     $where 关联预查询条件
+<a name="line328"></a>     * @param string    $relation 关联名
+<a name="line329"></a>     * @param string    $subRelation 子关联
+<a name="line330"></a>     * @param bool      $closure
+<a name="line331"></a>     * @return array
+<a name="line332"></a>     */
+<a name="line333"></a>    protected function eagerlyOneToMany($model, $where, $relation, $subRelation = '', $closure = false)
+<a name="line334"></a>    {
+<a name="line335"></a>        $foreignKey = $this->foreignKey;
+<a name="line336"></a>        // 预载入关联查询 支持嵌套预载入
+<a name="line337"></a>        $list = $model->where($where)->where($closure)->with($subRelation)->select();
+<a name="line338"></a>
+<a name="line339"></a>        // 组装模型数据
+<a name="line340"></a>        $data = [];
+<a name="line341"></a>        foreach ($list as $set) {
+<a name="line342"></a>            $data[$set->$foreignKey][] = $set;
+<a name="line343"></a>        }
+<a name="line344"></a>        return $data;
+<a name="line345"></a>    }
+<a name="line346"></a>
+<a name="line347"></a>    /**
+<a name="line348"></a>     * 多对多 关联模型预查询
+<a name="line349"></a>     * @access public
+<a name="line350"></a>     * @param object    $model 关联模型对象
+<a name="line351"></a>     * @param array     $where 关联预查询条件
+<a name="line352"></a>     * @param string    $relation 关联名
+<a name="line353"></a>     * @param string    $subRelation 子关联
+<a name="line354"></a>     * @return array
+<a name="line355"></a>     */
+<a name="line356"></a>    protected function eagerlyManyToMany($model, $where, $relation, $subRelation = '')
+<a name="line357"></a>    {
+<a name="line358"></a>        $foreignKey = $this->foreignKey;
+<a name="line359"></a>        $localKey   = $this->localKey;
+<a name="line360"></a>        // 预载入关联查询 支持嵌套预载入
+<a name="line361"></a>        $list = $this->belongsToManyQuery($model, $this->middle, $foreignKey, $localKey, $where)->with($subRelation)->select();
+<a name="line362"></a>
+<a name="line363"></a>        // 组装模型数据
+<a name="line364"></a>        $data = [];
+<a name="line365"></a>        foreach ($list as $set) {
+<a name="line366"></a>            $pivot = [];
+<a name="line367"></a>            foreach ($set->toArray() as $key => $val) {
+<a name="line368"></a>                if (strpos($key, '__')) {
+<a name="line369"></a>                    list($name, $attr) = explode('__', $key, 2);
+<a name="line370"></a>                    if ('pivot' == $name) {
+<a name="line371"></a>                        $pivot[$attr] = $val;
+<a name="line372"></a>                        unset($set->$key);
+<a name="line373"></a>                    }
+<a name="line374"></a>                }
+<a name="line375"></a>            }
+<a name="line376"></a>            $set->pivot                = new Pivot($pivot, $this->middle);
+<a name="line377"></a>            $data[$set->$foreignKey][] = $set;
+<a name="line378"></a>        }
+<a name="line379"></a>        return $data;
+<a name="line380"></a>    }
+<a name="line381"></a>
+<a name="line382"></a>    /**
+<a name="line383"></a>     * 设置当前关联定义的数据表别名
+<a name="line384"></a>     * @access public
+<a name="line385"></a>     * @param array  $alias 别名定义
+<a name="line386"></a>     * @return $this
+<a name="line387"></a>     */
+<a name="line388"></a>    public function setAlias($alias)
+<a name="line389"></a>    {
+<a name="line390"></a>        $this->alias = $alias;
+<a name="line391"></a>        return $this;
+<a name="line392"></a>    }
+<a name="line393"></a>
+<a name="line394"></a>    /**
+<a name="line395"></a>     * HAS ONE 关联定义
+<a name="line396"></a>     * @access public
+<a name="line397"></a>     * @param string $model 模型名
+<a name="line398"></a>     * @param string $foreignKey 关联外键
+<a name="line399"></a>     * @param string $localKey 关联主键
+<a name="line400"></a>     * @param array  $alias 别名定义
+<a name="line401"></a>     * @param string $joinType JOIN类型
+<a name="line402"></a>     * @return $this
+<a name="line403"></a>     */
+<a name="line404"></a>    public function hasOne($model, $foreignKey, $localKey, $alias = [], $joinType = 'INNER')
+<a name="line405"></a>    {
+<a name="line406"></a>        $this->type       = self::HAS_ONE;
+<a name="line407"></a>        $this->model      = $model;
+<a name="line408"></a>        $this->foreignKey = $foreignKey;
+<a name="line409"></a>        $this->localKey   = $localKey;
+<a name="line410"></a>        $this->alias      = $alias;
+<a name="line411"></a>        $this->joinType   = $joinType;
+<a name="line412"></a>
+<a name="line413"></a>        // 返回关联的模型对象
+<a name="line414"></a>        return $this;
+<a name="line415"></a>    }
+<a name="line416"></a>
+<a name="line417"></a>    /**
+<a name="line418"></a>     * BELONGS TO 关联定义
+<a name="line419"></a>     * @access public
+<a name="line420"></a>     * @param string $model 模型名
+<a name="line421"></a>     * @param string $foreignKey 关联外键
+<a name="line422"></a>     * @param string $otherKey 关联主键
+<a name="line423"></a>     * @param array  $alias 别名定义
+<a name="line424"></a>     * @param string $joinType JOIN类型
+<a name="line425"></a>     * @return $this
+<a name="line426"></a>     */
+<a name="line427"></a>    public function belongsTo($model, $foreignKey, $otherKey, $alias = [], $joinType = 'INNER')
+<a name="line428"></a>    {
+<a name="line429"></a>        // 记录当前关联信息
+<a name="line430"></a>        $this->type       = self::BELONGS_TO;
+<a name="line431"></a>        $this->model      = $model;
+<a name="line432"></a>        $this->foreignKey = $foreignKey;
+<a name="line433"></a>        $this->localKey   = $otherKey;
+<a name="line434"></a>        $this->alias      = $alias;
+<a name="line435"></a>        $this->joinType   = $joinType;
+<a name="line436"></a>
+<a name="line437"></a>        // 返回关联的模型对象
+<a name="line438"></a>        return $this;
+<a name="line439"></a>    }
+<a name="line440"></a>
+<a name="line441"></a>    /**
+<a name="line442"></a>     * HAS MANY 关联定义
+<a name="line443"></a>     * @access public
+<a name="line444"></a>     * @param string $model 模型名
+<a name="line445"></a>     * @param string $foreignKey 关联外键
+<a name="line446"></a>     * @param string $localKey 关联主键
+<a name="line447"></a>     * @param array  $alias 别名定义
+<a name="line448"></a>     * @return $this
+<a name="line449"></a>     */
+<a name="line450"></a>    public function hasMany($model, $foreignKey, $localKey, $alias)
+<a name="line451"></a>    {
+<a name="line452"></a>        // 记录当前关联信息
+<a name="line453"></a>        $this->type       = self::HAS_MANY;
+<a name="line454"></a>        $this->model      = $model;
+<a name="line455"></a>        $this->foreignKey = $foreignKey;
+<a name="line456"></a>        $this->localKey   = $localKey;
+<a name="line457"></a>        $this->alias      = $alias;
+<a name="line458"></a>
+<a name="line459"></a>        // 返回关联的模型对象
+<a name="line460"></a>        return $this;
+<a name="line461"></a>    }
+<a name="line462"></a>
+<a name="line463"></a>    /**
+<a name="line464"></a>     * HAS MANY 远程关联定义
+<a name="line465"></a>     * @access public
+<a name="line466"></a>     * @param string $model 模型名
+<a name="line467"></a>     * @param string $through 中间模型名
+<a name="line468"></a>     * @param string $firstkey 关联外键
+<a name="line469"></a>     * @param string $secondKey 关联外键
+<a name="line470"></a>     * @param string $localKey 关联主键
+<a name="line471"></a>     * @param array  $alias 别名定义
+<a name="line472"></a>     * @return $this
+<a name="line473"></a>     */
+<a name="line474"></a>    public function hasManyThrough($model, $through, $foreignKey, $throughKey, $localKey, $alias)
+<a name="line475"></a>    {
+<a name="line476"></a>        // 记录当前关联信息
+<a name="line477"></a>        $this->type       = self::HAS_MANY_THROUGH;
+<a name="line478"></a>        $this->model      = $model;
+<a name="line479"></a>        $this->middle     = $through;
+<a name="line480"></a>        $this->foreignKey = $foreignKey;
+<a name="line481"></a>        $this->throughKey = $throughKey;
+<a name="line482"></a>        $this->localKey   = $localKey;
+<a name="line483"></a>        $this->alias      = $alias;
+<a name="line484"></a>
+<a name="line485"></a>        // 返回关联的模型对象
+<a name="line486"></a>        return $this;
+<a name="line487"></a>    }
+<a name="line488"></a>
+<a name="line489"></a>    /**
+<a name="line490"></a>     * BELONGS TO MANY 关联定义
+<a name="line491"></a>     * @access public
+<a name="line492"></a>     * @param string $model 模型名
+<a name="line493"></a>     * @param string $table 中间表名
+<a name="line494"></a>     * @param string $foreignKey 关联模型外键
+<a name="line495"></a>     * @param string $localKey 当前模型关联键
+<a name="line496"></a>     * @param array  $alias 别名定义
+<a name="line497"></a>     * @return $this
+<a name="line498"></a>     */
+<a name="line499"></a>    public function belongsToMany($model, $table, $foreignKey, $localKey, $alias)
+<a name="line500"></a>    {
+<a name="line501"></a>        // 记录当前关联信息
+<a name="line502"></a>        $this->type       = self::BELONGS_TO_MANY;
+<a name="line503"></a>        $this->model      = $model;
+<a name="line504"></a>        $this->foreignKey = $foreignKey;
+<a name="line505"></a>        $this->localKey   = $localKey;
+<a name="line506"></a>        $this->middle     = $table;
+<a name="line507"></a>        $this->alias      = $alias;
+<a name="line508"></a>
+<a name="line509"></a>        // 返回关联的模型对象
+<a name="line510"></a>        return $this;
+<a name="line511"></a>    }
+<a name="line512"></a>
+<a name="line513"></a>    /**
+<a name="line514"></a>     * BELONGS TO MANY 关联查询
+<a name="line515"></a>     * @access public
+<a name="line516"></a>     * @param object    $model 关联模型对象
+<a name="line517"></a>     * @param string    $table 中间表名
+<a name="line518"></a>     * @param string    $foreignKey 关联模型关联键
+<a name="line519"></a>     * @param string    $localKey 当前模型关联键
+<a name="line520"></a>     * @param array     $condition 关联查询条件
+<a name="line521"></a>     * @return \think\db\Query|string
+<a name="line522"></a>     */
+<a name="line523"></a>    protected function belongsToManyQuery($model, $table, $foreignKey, $localKey, $condition = [])
+<a name="line524"></a>    {
+<a name="line525"></a>        // 关联查询封装
+<a name="line526"></a>        $tableName  = $model->getTable();
+<a name="line527"></a>        $relationFk = $model->getPk();
+<a name="line528"></a>        return $model::field($tableName . '.*')
+<a name="line529"></a>            ->field(true, false, $table, 'pivot', 'pivot__')
+<a name="line530"></a>            ->join($table . ' pivot', 'pivot.' . $foreignKey . '=' . $tableName . '.' . $relationFk)
+<a name="line531"></a>            ->where($condition);
+<a name="line532"></a>    }
+<a name="line533"></a>
+<a name="line534"></a>    /**
+<a name="line535"></a>     * 保存（新增）当前关联数据对象
+<a name="line536"></a>     * @access public
+<a name="line537"></a>     * @param mixed     $data 数据 可以使用数组 关联模型对象 和 关联对象的主键
+<a name="line538"></a>     * @param array     $pivot 中间表额外数据
+<a name="line539"></a>     * @return integer
+<a name="line540"></a>     */
+<a name="line541"></a>    public function save($data, array $pivot = [])
+<a name="line542"></a>    {
+<a name="line543"></a>        // 判断关联类型
+<a name="line544"></a>        switch ($this->type) {
+<a name="line545"></a>            case self::HAS_ONE:
+<a name="line546"></a>            case self::BELONGS_TO:
+<a name="line547"></a>            case self::HAS_MANY:
+<a name="line548"></a>                if ($data instanceof Model) {
+<a name="line549"></a>                    $data = $data->toArray();
+<a name="line550"></a>                }
+<a name="line551"></a>                // 保存关联表数据
+<a name="line552"></a>                $data[$this->foreignKey] = $this->parent->{$this->localKey};
+<a name="line553"></a>                $model                   = new $this->model;
+<a name="line554"></a>                return $model->save($data);
+<a name="line555"></a>            case self::BELONGS_TO_MANY:
+<a name="line556"></a>                // 保存关联表/中间表数据
+<a name="line557"></a>                return $this->attach($data, $pivot);
+<a name="line558"></a>        }
+<a name="line559"></a>    }
+<a name="line560"></a>
+<a name="line561"></a>    /**
+<a name="line562"></a>     * 批量保存当前关联数据对象
+<a name="line563"></a>     * @access public
+<a name="line564"></a>     * @param array     $dataSet 数据集
+<a name="line565"></a>     * @param array     $pivot 中间表额外数据
+<a name="line566"></a>     * @return integer
+<a name="line567"></a>     */
+<a name="line568"></a>    public function saveAll(array $dataSet, array $pivot = [])
+<a name="line569"></a>    {
+<a name="line570"></a>        $result = false;
+<a name="line571"></a>        foreach ($dataSet as $key => $data) {
+<a name="line572"></a>            // 判断关联类型
+<a name="line573"></a>            switch ($this->type) {
+<a name="line574"></a>                case self::HAS_MANY:
+<a name="line575"></a>                    $data[$this->foreignKey] = $this->parent->{$this->localKey};
+<a name="line576"></a>                    $result                  = $this->save($data);
+<a name="line577"></a>                    break;
+<a name="line578"></a>                case self::BELONGS_TO_MANY:
+<a name="line579"></a>                    // TODO
+<a name="line580"></a>                    $result = $this->attach($data, !empty($pivot) ? $pivot[$key] : []);
+<a name="line581"></a>                    break;
+<a name="line582"></a>            }
+<a name="line583"></a>        }
+<a name="line584"></a>        return $result;
+<a name="line585"></a>    }
+<a name="line586"></a>
+<a name="line587"></a>    /**
+<a name="line588"></a>     * 附加关联的一个中间表数据
+<a name="line589"></a>     * @access public
+<a name="line590"></a>     * @param mixed     $data 数据 可以使用数组、关联模型对象 或者 关联对象的主键
+<a name="line591"></a>     * @param array     $pivot 中间表额外数据
+<a name="line592"></a>     * @return integer
+<a name="line593"></a>     */
+<a name="line594"></a>    public function attach($data, $pivot = [])
+<a name="line595"></a>    {
+<a name="line596"></a>        if (is_array($data)) {
+<a name="line597"></a>            // 保存关联表数据
+<a name="line598"></a>            $model = new $this->model;
+<a name="line599"></a>            $id    = $model->save($data);
+<a name="line600"></a>        } elseif (is_numeric($data)) {
+<a name="line601"></a>            // 根据关联表主键直接写入中间表
+<a name="line602"></a>            $id = $data;
+<a name="line603"></a>        } elseif ($data instanceof Model) {
+<a name="line604"></a>            // 根据关联表主键直接写入中间表
+<a name="line605"></a>            $relationFk = $data->getPk();
+<a name="line606"></a>            $id         = $data->$relationFk;
+<a name="line607"></a>        }
+<a name="line608"></a>
+<a name="line609"></a>        if ($id) {
+<a name="line610"></a>            // 保存中间表数据
+<a name="line611"></a>            $pk                       = $this->parent->getPk();
+<a name="line612"></a>            $pivot[$this->localKey]   = $this->parent->$pk;
+<a name="line613"></a>            $pivot[$this->foreignKey] = $id;
+<a name="line614"></a>            $query                    = clone $this->parent->db();
+<a name="line615"></a>            return $query->table($this->middle)->insert($pivot);
+<a name="line616"></a>        } else {
+<a name="line617"></a>            throw new Exception('miss relation data');
+<a name="line618"></a>        }
+<a name="line619"></a>    }
+<a name="line620"></a>
+<a name="line621"></a>    /**
+<a name="line622"></a>     * 解除关联的一个中间表数据
+<a name="line623"></a>     * @access public
+<a name="line624"></a>     * @param integer|array     $data 数据 可以使用关联对象的主键
+<a name="line625"></a>     * @param bool              $relationDel 是否同时删除关联表数据
+<a name="line626"></a>     * @return integer
+<a name="line627"></a>     */
+<a name="line628"></a>    public function detach($data, $relationDel = false)
+<a name="line629"></a>    {
+<a name="line630"></a>        if (is_array($data)) {
+<a name="line631"></a>            $id = $data;
+<a name="line632"></a>        } elseif (is_numeric($data)) {
+<a name="line633"></a>            // 根据关联表主键直接写入中间表
+<a name="line634"></a>            $id = $data;
+<a name="line635"></a>        } elseif ($data instanceof Model) {
+<a name="line636"></a>            // 根据关联表主键直接写入中间表
+<a name="line637"></a>            $relationFk = $data->getPk();
+<a name="line638"></a>            $id         = $data->$relationFk;
+<a name="line639"></a>        }
+<a name="line640"></a>        // 删除中间表数据
+<a name="line641"></a>        $pk                       = $this->parent->getPk();
+<a name="line642"></a>        $pivot[$this->localKey]   = $this->parent->$pk;
+<a name="line643"></a>        $pivot[$this->foreignKey] = is_array($id) ? ['in', $id] : $id;
+<a name="line644"></a>        $query                    = clone $this->parent->db();
+<a name="line645"></a>        $query->table($this->middle)->where($pivot)->delete();
+<a name="line646"></a>
+<a name="line647"></a>        // 删除关联表数据
+<a name="line648"></a>        if ($relationDel) {
+<a name="line649"></a>            $model = $this->model;
+<a name="line650"></a>            $model::destroy($id);
+<a name="line651"></a>        }
+<a name="line652"></a>    }
+<a name="line653"></a>
+<a name="line654"></a>    public function __call($method, $args)
+<a name="line655"></a>    {
+<a name="line656"></a>        if ($this->model) {
+<a name="line657"></a>            $model = new $this->model;
+<a name="line658"></a>            $db    = $model->db();
+<a name="line659"></a>            switch ($this->type) {
+<a name="line660"></a>                case self::HAS_MANY:
+<a name="line661"></a>                    if (isset($this->parent->{$this->localKey})) {
+<a name="line662"></a>                        // 关联查询带入关联条件
+<a name="line663"></a>                        $db->where($this->foreignKey, $this->parent->{$this->localKey});
+<a name="line664"></a>                    }
+<a name="line665"></a>                    break;
+<a name="line666"></a>                case self::HAS_MANY_THROUGH:
+<a name="line667"></a>                    $through      = $this->middle;
+<a name="line668"></a>                    $model        = $this->model;
+<a name="line669"></a>                    $alias        = Loader::parseName(basename(str_replace('\\', '/', $model)));
+<a name="line670"></a>                    $throughTable = $through::getTable();
+<a name="line671"></a>                    $pk           = (new $this->model)->getPk();
+<a name="line672"></a>                    $throughKey   = $this->throughKey;
+<a name="line673"></a>                    $modelTable   = $this->parent->getTable();
+<a name="line674"></a>                    $result       = $db->field($alias . '.*')->alias($alias)
+<a name="line675"></a>                        ->join($throughTable, $throughTable . '.' . $pk . '=' . $alias . '.' . $throughKey)
+<a name="line676"></a>                        ->join($modelTable, $modelTable . '.' . $this->localKey . '=' . $throughTable . '.' . $this->foreignKey)
+<a name="line677"></a>                        ->where($throughTable . '.' . $this->foreignKey, $this->parent->{$this->localKey});
+<a name="line678"></a>                    break;
+<a name="line679"></a>            }
+<a name="line680"></a>            return call_user_func_array([$db, $method], $args);
+<a name="line681"></a>        } else {
+<a name="line682"></a>            throw new Exception('method not exists:' . __CLASS__ . '->' . $method);
+<a name="line683"></a>        }
+<a name="line684"></a>    }
+<a name="line685"></a>
+<a name="line686"></a>}
+<a name="line687"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\model\relation.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

@@ -1,0 +1,174 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\console\helper\Debug.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\helper\debug.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\console\helper\Debug.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2015 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: yunwuxin <448901948@qq.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\console\helper;
+<a name="line13"></a>
+<a name="line14"></a>class Debug extends Helper
+<a name="line15"></a>{
+<a name="line16"></a>
+<a name="line17"></a>    private $colors  = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+<a name="line18"></a>    private $started = [];
+<a name="line19"></a>    private $count   = -1;
+<a name="line20"></a>
+<a name="line21"></a>    /**
+<a name="line22"></a>     * 启动调试会话的格式
+<a name="line23"></a>     * @param string $id      会话的 id
+<a name="line24"></a>     * @param string $message 要显示的消息
+<a name="line25"></a>     * @param string $prefix  要使用的前缀
+<a name="line26"></a>     * @return string
+<a name="line27"></a>     */
+<a name="line28"></a>    public function start($id, $message, $prefix = 'RUN')
+<a name="line29"></a>    {
+<a name="line30"></a>        $this->started[$id] = ['border' => ++$this->count % count($this->colors)];
+<a name="line31"></a>
+<a name="line32"></a>        return sprintf("%s<bg=blue;fg=white> %s </> <fg=blue>%s</>\n", $this->getBorder($id), $prefix, $message);
+<a name="line33"></a>    }
+<a name="line34"></a>
+<a name="line35"></a>    /**
+<a name="line36"></a>     * 添加设置会话的进度条格式
+<a name="line37"></a>     * @param string $id          会话的 id
+<a name="line38"></a>     * @param string $buffer      要显示的消息
+<a name="line39"></a>     * @param bool   $error       是否输出错误
+<a name="line40"></a>     * @param string $prefix      输出的前缀
+<a name="line41"></a>     * @param string $errorPrefix 输出错误的前缀
+<a name="line42"></a>     * @return string
+<a name="line43"></a>     */
+<a name="line44"></a>    public function progress($id, $buffer, $error = false, $prefix = 'OUT', $errorPrefix = 'ERR')
+<a name="line45"></a>    {
+<a name="line46"></a>        $message = '';
+<a name="line47"></a>
+<a name="line48"></a>        if ($error) {
+<a name="line49"></a>            if (isset($this->started[$id]['out'])) {
+<a name="line50"></a>                $message .= "\n";
+<a name="line51"></a>                unset($this->started[$id]['out']);
+<a name="line52"></a>            }
+<a name="line53"></a>            if (!isset($this->started[$id]['err'])) {
+<a name="line54"></a>                $message .= sprintf("%s<bg=red;fg=white> %s </> ", $this->getBorder($id), $errorPrefix);
+<a name="line55"></a>                $this->started[$id]['err'] = true;
+<a name="line56"></a>            }
+<a name="line57"></a>
+<a name="line58"></a>            $message .= str_replace("\n", sprintf("\n%s<bg=red;fg=white> %s </> ", $this->getBorder($id), $errorPrefix), $buffer);
+<a name="line59"></a>        } else {
+<a name="line60"></a>            if (isset($this->started[$id]['err'])) {
+<a name="line61"></a>                $message .= "\n";
+<a name="line62"></a>                unset($this->started[$id]['err']);
+<a name="line63"></a>            }
+<a name="line64"></a>            if (!isset($this->started[$id]['out'])) {
+<a name="line65"></a>                $message .= sprintf("%s<bg=green;fg=white> %s </> ", $this->getBorder($id), $prefix);
+<a name="line66"></a>                $this->started[$id]['out'] = true;
+<a name="line67"></a>            }
+<a name="line68"></a>
+<a name="line69"></a>            $message .= str_replace("\n", sprintf("\n%s<bg=green;fg=white> %s </> ", $this->getBorder($id), $prefix), $buffer);
+<a name="line70"></a>        }
+<a name="line71"></a>
+<a name="line72"></a>        return $message;
+<a name="line73"></a>    }
+<a name="line74"></a>
+<a name="line75"></a>    /**
+<a name="line76"></a>     * 停止一个会话
+<a name="line77"></a>     * @param string $id         会话的 id
+<a name="line78"></a>     * @param string $message    要显示的消息
+<a name="line79"></a>     * @param bool   $successful 是否显示成功消息
+<a name="line80"></a>     * @param string $prefix     前缀
+<a name="line81"></a>     * @return string
+<a name="line82"></a>     */
+<a name="line83"></a>    public function stop($id, $message, $successful, $prefix = 'RES')
+<a name="line84"></a>    {
+<a name="line85"></a>        $trailingEOL = isset($this->started[$id]['out']) || isset($this->started[$id]['err']) ? "\n" : '';
+<a name="line86"></a>
+<a name="line87"></a>        if ($successful) {
+<a name="line88"></a>            return sprintf("%s%s<bg=green;fg=white> %s </> <fg=green>%s</>\n", $trailingEOL, $this->getBorder($id), $prefix, $message);
+<a name="line89"></a>        }
+<a name="line90"></a>
+<a name="line91"></a>        $message = sprintf("%s%s<bg=red;fg=white> %s </> <fg=red>%s</>\n", $trailingEOL, $this->getBorder($id), $prefix, $message);
+<a name="line92"></a>
+<a name="line93"></a>        unset($this->started[$id]['out'], $this->started[$id]['err']);
+<a name="line94"></a>
+<a name="line95"></a>        return $message;
+<a name="line96"></a>    }
+<a name="line97"></a>
+<a name="line98"></a>    /**
+<a name="line99"></a>     * @param string $id
+<a name="line100"></a>     * @return string
+<a name="line101"></a>     */
+<a name="line102"></a>    private function getBorder($id)
+<a name="line103"></a>    {
+<a name="line104"></a>        return sprintf('<bg=%s> </>', $this->colors[$this->started[$id]['border']]);
+<a name="line105"></a>    }
+<a name="line106"></a>
+<a name="line107"></a>    /**
+<a name="line108"></a>     * {@inheritdoc}
+<a name="line109"></a>     */
+<a name="line110"></a>    public function getName()
+<a name="line111"></a>    {
+<a name="line112"></a>        return 'debug_formatter';
+<a name="line113"></a>    }
+<a name="line114"></a>}</pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\helper\debug.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

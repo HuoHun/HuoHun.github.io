@@ -1,0 +1,1070 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:05 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>Request (ThinkPHP)</title>
+
+</head>
+<body id="definition" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li><a href="../think/package-summary.html">Namespace</a></li>
+<li class="active">Class</li>
+<li><a href="../think/package-tree.html">Tree</a></li>
+<li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../think\request.html" target="_top">No frames</a>
+</div>
+<div class="small_links">
+Summary: <a href="#summary_field">Field</a> | <a href="#summary_method">Method</a> | <a href="#summary_constr">Constr</a>
+Detail: <a href="#detail_field">Field</a> | <a href="#detail_method">Method</a> | <a href="#summary_constr">Constr</a>
+</div>
+<hr>
+
+<div class="qualifiedName">think\Request</div>
+<a href="../source/library/think/request.php.html#line19" class="location">library\think\Request.php at line 19</a>
+
+<h1>Class Request</h1>
+
+<pre class="tree"><strong>Request</strong><br /></pre>
+
+<hr>
+
+<p class="signature">public  class <strong>Request</strong></p>
+
+<hr>
+
+<table id="summary_constructor">
+<tr><th colspan="2">Constructor Summary</th></tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#__construct()">__construct</a>(string name, string default, string|array filter)</p><p class="description">获取request变量</p></td>
+</tr>
+</table>
+
+<table id="summary_method">
+<tr><th colspan="2">Method Summary</th></tr>
+<tr>
+<td class="type">static  void</td>
+<td class="description"><p class="name"><a href="#hook()">hook</a>(string|array method, mixed callback)</p><p class="description">Hook 方法注入</p></td>
+</tr>
+<tr>
+<td class="type">static  \think\Request</td>
+<td class="description"><p class="name"><a href="#instance()">instance</a>(array options)</p><p class="description">初始化</p></td>
+</tr>
+<tr>
+<td class="type">static  \think\Request</td>
+<td class="description"><p class="name"><a href="#create()">create</a>(string uri, string method, array params, array cookie, array files, array server, string content)</p><p class="description">创建一个URL请求</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#domain()">domain</a>(string domain)</p><p class="description">获取当前包含协议的域名</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#url()">url</a>(string|true url)</p><p class="description">获取当前完整URL 包括QUERY_STRING</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#baseUrl()">baseUrl</a>(string url)</p><p class="description">获取当前URL 不含QUERY_STRING</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#baseFile()">baseFile</a>(string file)</p><p class="description">获取当前执行的文件 SCRIPT_NAME</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#root()">root</a>(string url)</p><p class="description">获取URL访问根地址</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#pathinfo()">pathinfo</a>()</p><p class="description">获取当前请求URL的pathinfo信息（含URL后缀）</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#path()">path</a>()</p><p class="description">获取当前请求URL的pathinfo信息(不含URL后缀)</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#ext()">ext</a>()</p><p class="description">当前URL的访问后缀</p></td>
+</tr>
+<tr>
+<td class="type"> integer|float</td>
+<td class="description"><p class="name"><a href="#time()">time</a>(bool float)</p><p class="description">获取当前请求的时间</p></td>
+</tr>
+<tr>
+<td class="type"> false|string</td>
+<td class="description"><p class="name"><a href="#type()">type</a>()</p><p class="description">当前请求的资源类型</p></td>
+</tr>
+<tr>
+<td class="type"> void</td>
+<td class="description"><p class="name"><a href="#mimeType()">mimeType</a>(string|array type, string val)</p><p class="description">设置资源类型</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#method()">method</a>(bool method)</p><p class="description">当前的请求类型</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isGet()">isGet</a>()</p><p class="description">是否为GET请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isPost()">isPost</a>()</p><p class="description">是否为POST请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isPut()">isPut</a>()</p><p class="description">是否为PUT请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isDelete()">isDelete</a>()</p><p class="description">是否为DELTE请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isHead()">isHead</a>()</p><p class="description">是否为HEAD请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isPatch()">isPatch</a>()</p><p class="description">是否为PATCH请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isOptions()">isOptions</a>()</p><p class="description">是否为OPTIONS请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isCli()">isCli</a>()</p><p class="description">是否为cli</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isCgi()">isCgi</a>()</p><p class="description">是否为cgi</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#param()">param</a>(string|array name, mixed default, string|array filter)</p><p class="description">设置获取获取当前请求的参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#get()">get</a>(string|array name, mixed default, string|array filter)</p><p class="description">设置获取获取GET参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#post()">post</a>(string name, mixed default, string|array filter)</p><p class="description">设置获取获取POST参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#put()">put</a>(string|array name, mixed default, string|array filter)</p><p class="description">设置获取获取PUT参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#delete()">delete</a>(string|array name, mixed default, string|array filter)</p><p class="description">设置获取获取DELETE参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#session()">session</a>(string|array name, string default, string|array filter)</p><p class="description">获取session数据</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#cookie()">cookie</a>(string|array name, string default, string|array filter)</p><p class="description">获取cookie参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#server()">server</a>(string|array name, string default, string|array filter)</p><p class="description">获取server参数</p></td>
+</tr>
+<tr>
+<td class="type"> null|array|\think\File</td>
+<td class="description"><p class="name"><a href="#file()">file</a>(string|array name)</p><p class="description">获取上传的文件信息</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#env()">env</a>(string|array name, string default, string|array filter)</p><p class="description">获取环境变量</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#header()">header</a>(string|array name, string default)</p><p class="description">设置或者获取当前的Header</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#pathParam()">pathParam</a>(string name, string default, string|array filter)</p><p class="description">获取PATH_INFO</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#input()">input</a>(array data, string name, mixed default, string|array filter)</p><p class="description">获取变量 支持过滤和默认值</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#filter()">filter</a>(mixed filter)</p><p class="description">设置或获取当前的过滤规则</p></td>
+</tr>
+<tr>
+<td class="type"> void</td>
+<td class="description"><p class="name"><a href="#filterExp()">filterExp</a>(string value)</p><p class="description">过滤表单中的表达式</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#has()">has</a>(string name, string type, bool checkEmpty)</p><p class="description">是否存在某个请求参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#only()">only</a>(string|array name, string type)</p><p class="description">获取指定的参数</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#except()">except</a>(string|array name, string type)</p><p class="description">排除指定参数获取</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isSsl()">isSsl</a>()</p><p class="description">当前是否ssl</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isAjax()">isAjax</a>()</p><p class="description">当前是否Ajax请求</p></td>
+</tr>
+<tr>
+<td class="type"> bool</td>
+<td class="description"><p class="name"><a href="#isPjax()">isPjax</a>()</p><p class="description">当前是否Pjax请求</p></td>
+</tr>
+<tr>
+<td class="type"> mixed</td>
+<td class="description"><p class="name"><a href="#ip()">ip</a>(integer type, boolean adv)</p><p class="description">获取客户端IP地址</p></td>
+</tr>
+<tr>
+<td class="type">static  bool</td>
+<td class="description"><p class="name"><a href="#isMobile()">isMobile</a>()</p><p class="description">检测是否使用手机访问</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#scheme()">scheme</a>()</p><p class="description">当前URL地址中的scheme参数</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#query()">query</a>()</p><p class="description">当前请求URL地址中的query参数</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#host()">host</a>()</p><p class="description">当前请求的host</p></td>
+</tr>
+<tr>
+<td class="type"> integer</td>
+<td class="description"><p class="name"><a href="#port()">port</a>()</p><p class="description">当前请求URL地址中的port参数</p></td>
+</tr>
+<tr>
+<td class="type"> integer</td>
+<td class="description"><p class="name"><a href="#protocol()">protocol</a>()</p><p class="description">当前请求 SERVER_PROTOCOL</p></td>
+</tr>
+<tr>
+<td class="type"> integer</td>
+<td class="description"><p class="name"><a href="#remotePort()">remotePort</a>()</p><p class="description">当前请求 REMOTE_PORT</p></td>
+</tr>
+<tr>
+<td class="type"> array</td>
+<td class="description"><p class="name"><a href="#route()">route</a>(array route)</p><p class="description">获取当前请求的路由</p></td>
+</tr>
+<tr>
+<td class="type"> array</td>
+<td class="description"><p class="name"><a href="#dispatch()">dispatch</a>(array dispatch)</p><p class="description">设置或者获取当前请求的调度信息</p></td>
+</tr>
+<tr>
+<td class="type"> string|$this</td>
+<td class="description"><p class="name"><a href="#module()">module</a>(string module)</p><p class="description">设置或者获取当前的模块名</p></td>
+</tr>
+<tr>
+<td class="type"> string|$this</td>
+<td class="description"><p class="name"><a href="#controller()">controller</a>(string controller)</p><p class="description">设置或者获取当前的控制器名</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#action()">action</a>(string action)</p><p class="description">设置或者获取当前的操作名</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#langset()">langset</a>(string lang)</p><p class="description">设置或者获取当前的语言</p></td>
+</tr>
+<tr>
+<td class="type"> string</td>
+<td class="description"><p class="name"><a href="#getContent()">getContent</a>()</p><p class="description">设置或者获取当前请求的content</p></td>
+</tr>
+</table>
+
+<h2 id="detail_method">Constructor Detail</h2>
+<a href="../source/library/think/request.php.html#line694" class="location">library\think\Request.php at line 694</a>
+
+<h3 id="__construct()">__construct</h3>
+<code class="signature">public  mixed <strong>__construct</strong>(string name, string default, string|array filter)</code>
+<div class="details">
+<p>获取request变量</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 数据名称</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<h2 id="detail_method">Method Detail</h2>
+<a href="../source/library/think/request.php.html#line136" class="location">library\think\Request.php at line 136</a>
+
+<h3 id="hook()">hook</h3>
+<code class="signature">public static  void <strong>hook</strong>(string|array method, mixed callback)</code>
+<div class="details">
+<p>Hook 方法注入</p><dl>
+<dt>Parameters:</dt>
+<dd>method - 方法名</dd>
+<dd>callback - callable</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line151" class="location">library\think\Request.php at line 151</a>
+
+<h3 id="instance()">instance</h3>
+<code class="signature">public static  \think\Request <strong>instance</strong>(array options)</code>
+<div class="details">
+<p>初始化</p><dl>
+<dt>Parameters:</dt>
+<dd>options - 参数</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line171" class="location">library\think\Request.php at line 171</a>
+
+<h3 id="create()">create</h3>
+<code class="signature">public static  \think\Request <strong>create</strong>(string uri, string method, array params, array cookie, array files, array server, string content)</code>
+<div class="details">
+<p>创建一个URL请求</p><dl>
+<dt>Parameters:</dt>
+<dd>uri - URL地址</dd>
+<dd>method - 请求类型</dd>
+<dd>params - 请求参数</dd>
+<dd></dd>
+<dd></dd>
+<dd></dd>
+<dd></dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line238" class="location">library\think\Request.php at line 238</a>
+
+<h3 id="domain()">domain</h3>
+<code class="signature">public  string <strong>domain</strong>(string domain)</code>
+<div class="details">
+<p>获取当前包含协议的域名</p><dl>
+<dt>Parameters:</dt>
+<dd>domain - 域名</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line255" class="location">library\think\Request.php at line 255</a>
+
+<h3 id="url()">url</h3>
+<code class="signature">public  string <strong>url</strong>(string|true url)</code>
+<div class="details">
+<p>获取当前完整URL 包括QUERY_STRING</p><dl>
+<dt>Parameters:</dt>
+<dd>url - URL地址 true 带域名获取</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line282" class="location">library\think\Request.php at line 282</a>
+
+<h3 id="baseUrl()">baseUrl</h3>
+<code class="signature">public  string <strong>baseUrl</strong>(string url)</code>
+<div class="details">
+<p>获取当前URL 不含QUERY_STRING</p><dl>
+<dt>Parameters:</dt>
+<dd>url - URL地址</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line300" class="location">library\think\Request.php at line 300</a>
+
+<h3 id="baseFile()">baseFile</h3>
+<code class="signature">public  string <strong>baseFile</strong>(string file)</code>
+<div class="details">
+<p>获取当前执行的文件 SCRIPT_NAME</p><dl>
+<dt>Parameters:</dt>
+<dd>file - 当前执行的文件</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line332" class="location">library\think\Request.php at line 332</a>
+
+<h3 id="root()">root</h3>
+<code class="signature">public  string <strong>root</strong>(string url)</code>
+<div class="details">
+<p>获取URL访问根地址</p><dl>
+<dt>Parameters:</dt>
+<dd>url - URL地址</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line352" class="location">library\think\Request.php at line 352</a>
+
+<h3 id="pathinfo()">pathinfo</h3>
+<code class="signature">public  string <strong>pathinfo</strong>()</code>
+<div class="details">
+<p>获取当前请求URL的pathinfo信息（含URL后缀）</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line384" class="location">library\think\Request.php at line 384</a>
+
+<h3 id="path()">path</h3>
+<code class="signature">public  string <strong>path</strong>()</code>
+<div class="details">
+<p>获取当前请求URL的pathinfo信息(不含URL后缀)</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line408" class="location">library\think\Request.php at line 408</a>
+
+<h3 id="ext()">ext</h3>
+<code class="signature">public  string <strong>ext</strong>()</code>
+<div class="details">
+<p>当前URL的访问后缀</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line419" class="location">library\think\Request.php at line 419</a>
+
+<h3 id="time()">time</h3>
+<code class="signature">public  integer|float <strong>time</strong>(bool float)</code>
+<div class="details">
+<p>获取当前请求的时间</p><dl>
+<dt>Parameters:</dt>
+<dd>float - 是否使用浮点类型</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line429" class="location">library\think\Request.php at line 429</a>
+
+<h3 id="type()">type</h3>
+<code class="signature">public  false|string <strong>type</strong>()</code>
+<div class="details">
+<p>当前请求的资源类型</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line454" class="location">library\think\Request.php at line 454</a>
+
+<h3 id="mimeType()">mimeType</h3>
+<code class="signature">public  void <strong>mimeType</strong>(string|array type, string val)</code>
+<div class="details">
+<p>设置资源类型</p><dl>
+<dt>Parameters:</dt>
+<dd>type - 资源类型名</dd>
+<dd>val - 资源类型</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line469" class="location">library\think\Request.php at line 469</a>
+
+<h3 id="method()">method</h3>
+<code class="signature">public  string <strong>method</strong>(bool method)</code>
+<div class="details">
+<p>当前的请求类型</p><dl>
+<dt>Parameters:</dt>
+<dd>method - true 获取原始请求类型</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line491" class="location">library\think\Request.php at line 491</a>
+
+<h3 id="isGet()">isGet</h3>
+<code class="signature">public  bool <strong>isGet</strong>()</code>
+<div class="details">
+<p>是否为GET请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line501" class="location">library\think\Request.php at line 501</a>
+
+<h3 id="isPost()">isPost</h3>
+<code class="signature">public  bool <strong>isPost</strong>()</code>
+<div class="details">
+<p>是否为POST请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line511" class="location">library\think\Request.php at line 511</a>
+
+<h3 id="isPut()">isPut</h3>
+<code class="signature">public  bool <strong>isPut</strong>()</code>
+<div class="details">
+<p>是否为PUT请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line521" class="location">library\think\Request.php at line 521</a>
+
+<h3 id="isDelete()">isDelete</h3>
+<code class="signature">public  bool <strong>isDelete</strong>()</code>
+<div class="details">
+<p>是否为DELTE请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line531" class="location">library\think\Request.php at line 531</a>
+
+<h3 id="isHead()">isHead</h3>
+<code class="signature">public  bool <strong>isHead</strong>()</code>
+<div class="details">
+<p>是否为HEAD请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line541" class="location">library\think\Request.php at line 541</a>
+
+<h3 id="isPatch()">isPatch</h3>
+<code class="signature">public  bool <strong>isPatch</strong>()</code>
+<div class="details">
+<p>是否为PATCH请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line551" class="location">library\think\Request.php at line 551</a>
+
+<h3 id="isOptions()">isOptions</h3>
+<code class="signature">public  bool <strong>isOptions</strong>()</code>
+<div class="details">
+<p>是否为OPTIONS请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line561" class="location">library\think\Request.php at line 561</a>
+
+<h3 id="isCli()">isCli</h3>
+<code class="signature">public  bool <strong>isCli</strong>()</code>
+<div class="details">
+<p>是否为cli</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line571" class="location">library\think\Request.php at line 571</a>
+
+<h3 id="isCgi()">isCgi</h3>
+<code class="signature">public  bool <strong>isCgi</strong>()</code>
+<div class="details">
+<p>是否为cgi</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line584" class="location">library\think\Request.php at line 584</a>
+
+<h3 id="param()">param</h3>
+<code class="signature">public  mixed <strong>param</strong>(string|array name, mixed default, string|array filter)</code>
+<div class="details">
+<p>设置获取获取当前请求的参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line621" class="location">library\think\Request.php at line 621</a>
+
+<h3 id="get()">get</h3>
+<code class="signature">public  mixed <strong>get</strong>(string|array name, mixed default, string|array filter)</code>
+<div class="details">
+<p>设置获取获取GET参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line639" class="location">library\think\Request.php at line 639</a>
+
+<h3 id="post()">post</h3>
+<code class="signature">public  mixed <strong>post</strong>(string name, mixed default, string|array filter)</code>
+<div class="details">
+<p>设置获取获取POST参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line657" class="location">library\think\Request.php at line 657</a>
+
+<h3 id="put()">put</h3>
+<code class="signature">public  mixed <strong>put</strong>(string|array name, mixed default, string|array filter)</code>
+<div class="details">
+<p>设置获取获取PUT参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line676" class="location">library\think\Request.php at line 676</a>
+
+<h3 id="delete()">delete</h3>
+<code class="signature">public  mixed <strong>delete</strong>(string|array name, mixed default, string|array filter)</code>
+<div class="details">
+<p>设置获取获取DELETE参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line712" class="location">library\think\Request.php at line 712</a>
+
+<h3 id="session()">session</h3>
+<code class="signature">public  mixed <strong>session</strong>(string|array name, string default, string|array filter)</code>
+<div class="details">
+<p>获取session数据</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 数据名称</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line730" class="location">library\think\Request.php at line 730</a>
+
+<h3 id="cookie()">cookie</h3>
+<code class="signature">public  mixed <strong>cookie</strong>(string|array name, string default, string|array filter)</code>
+<div class="details">
+<p>获取cookie参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 数据名称</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line748" class="location">library\think\Request.php at line 748</a>
+
+<h3 id="server()">server</h3>
+<code class="signature">public  mixed <strong>server</strong>(string|array name, string default, string|array filter)</code>
+<div class="details">
+<p>获取server参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 数据名称</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line764" class="location">library\think\Request.php at line 764</a>
+
+<h3 id="file()">file</h3>
+<code class="signature">public  null|array|\think\File <strong>file</strong>(string|array name)</code>
+<div class="details">
+<p>获取上传的文件信息</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 名称</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line825" class="location">library\think\Request.php at line 825</a>
+
+<h3 id="env()">env</h3>
+<code class="signature">public  mixed <strong>env</strong>(string|array name, string default, string|array filter)</code>
+<div class="details">
+<p>获取环境变量</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 数据名称</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line842" class="location">library\think\Request.php at line 842</a>
+
+<h3 id="header()">header</h3>
+<code class="signature">public  string <strong>header</strong>(string|array name, string default)</code>
+<div class="details">
+<p>设置或者获取当前的Header</p><dl>
+<dt>Parameters:</dt>
+<dd>name - header名称</dd>
+<dd>default - 默认值</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line877" class="location">library\think\Request.php at line 877</a>
+
+<h3 id="pathParam()">pathParam</h3>
+<code class="signature">public  mixed <strong>pathParam</strong>(string name, string default, string|array filter)</code>
+<div class="details">
+<p>获取PATH_INFO</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 数据名称</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤方法</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line897" class="location">library\think\Request.php at line 897</a>
+
+<h3 id="input()">input</h3>
+<code class="signature">public  mixed <strong>input</strong>(array data, string name, mixed default, string|array filter)</code>
+<div class="details">
+<p>获取变量 支持过滤和默认值</p><dl>
+<dt>Parameters:</dt>
+<dd>data - 数据源</dd>
+<dd>name - 字段名</dd>
+<dd>default - 默认值</dd>
+<dd>filter - 过滤函数</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line945" class="location">library\think\Request.php at line 945</a>
+
+<h3 id="filter()">filter</h3>
+<code class="signature">public  mixed <strong>filter</strong>(mixed filter)</code>
+<div class="details">
+<p>设置或获取当前的过滤规则</p><dl>
+<dt>Parameters:</dt>
+<dd>filter - 过滤规则</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line995" class="location">library\think\Request.php at line 995</a>
+
+<h3 id="filterExp()">filterExp</h3>
+<code class="signature">public  void <strong>filterExp</strong>(string value)</code>
+<div class="details">
+<p>过滤表单中的表达式</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1048" class="location">library\think\Request.php at line 1048</a>
+
+<h3 id="has()">has</h3>
+<code class="signature">public  mixed <strong>has</strong>(string name, string type, bool checkEmpty)</code>
+<div class="details">
+<p>是否存在某个请求参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>type - 变量类型</dd>
+<dd>checkEmpty - 是否检测空值</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1073" class="location">library\think\Request.php at line 1073</a>
+
+<h3 id="only()">only</h3>
+<code class="signature">public  mixed <strong>only</strong>(string|array name, string type)</code>
+<div class="details">
+<p>获取指定的参数</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>type - 变量类型</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1095" class="location">library\think\Request.php at line 1095</a>
+
+<h3 id="except()">except</h3>
+<code class="signature">public  mixed <strong>except</strong>(string|array name, string type)</code>
+<div class="details">
+<p>排除指定参数获取</p><dl>
+<dt>Parameters:</dt>
+<dd>name - 变量名</dd>
+<dd>type - 变量类型</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1114" class="location">library\think\Request.php at line 1114</a>
+
+<h3 id="isSsl()">isSsl</h3>
+<code class="signature">public  bool <strong>isSsl</strong>()</code>
+<div class="details">
+<p>当前是否ssl</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1134" class="location">library\think\Request.php at line 1134</a>
+
+<h3 id="isAjax()">isAjax</h3>
+<code class="signature">public  bool <strong>isAjax</strong>()</code>
+<div class="details">
+<p>当前是否Ajax请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1144" class="location">library\think\Request.php at line 1144</a>
+
+<h3 id="isPjax()">isPjax</h3>
+<code class="signature">public  bool <strong>isPjax</strong>()</code>
+<div class="details">
+<p>当前是否Pjax请求</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1155" class="location">library\think\Request.php at line 1155</a>
+
+<h3 id="ip()">ip</h3>
+<code class="signature">public  mixed <strong>ip</strong>(integer type, boolean adv)</code>
+<div class="details">
+<p>获取客户端IP地址</p><dl>
+<dt>Parameters:</dt>
+<dd>type - 返回类型 0 返回IP地址 1 返回IPV4地址数字</dd>
+<dd>adv - 是否进行高级模式获取（有可能被伪装）</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1191" class="location">library\think\Request.php at line 1191</a>
+
+<h3 id="isMobile()">isMobile</h3>
+<code class="signature">public static  bool <strong>isMobile</strong>()</code>
+<div class="details">
+<p>检测是否使用手机访问</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1211" class="location">library\think\Request.php at line 1211</a>
+
+<h3 id="scheme()">scheme</h3>
+<code class="signature">public  string <strong>scheme</strong>()</code>
+<div class="details">
+<p>当前URL地址中的scheme参数</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1221" class="location">library\think\Request.php at line 1221</a>
+
+<h3 id="query()">query</h3>
+<code class="signature">public  string <strong>query</strong>()</code>
+<div class="details">
+<p>当前请求URL地址中的query参数</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1231" class="location">library\think\Request.php at line 1231</a>
+
+<h3 id="host()">host</h3>
+<code class="signature">public  string <strong>host</strong>()</code>
+<div class="details">
+<p>当前请求的host</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1241" class="location">library\think\Request.php at line 1241</a>
+
+<h3 id="port()">port</h3>
+<code class="signature">public  integer <strong>port</strong>()</code>
+<div class="details">
+<p>当前请求URL地址中的port参数</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1251" class="location">library\think\Request.php at line 1251</a>
+
+<h3 id="protocol()">protocol</h3>
+<code class="signature">public  integer <strong>protocol</strong>()</code>
+<div class="details">
+<p>当前请求 SERVER_PROTOCOL</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1261" class="location">library\think\Request.php at line 1261</a>
+
+<h3 id="remotePort()">remotePort</h3>
+<code class="signature">public  integer <strong>remotePort</strong>()</code>
+<div class="details">
+<p>当前请求 REMOTE_PORT</p></div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1272" class="location">library\think\Request.php at line 1272</a>
+
+<h3 id="route()">route</h3>
+<code class="signature">public  array <strong>route</strong>(array route)</code>
+<div class="details">
+<p>获取当前请求的路由</p><dl>
+<dt>Parameters:</dt>
+<dd>route - 路由名称</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1287" class="location">library\think\Request.php at line 1287</a>
+
+<h3 id="dispatch()">dispatch</h3>
+<code class="signature">public  array <strong>dispatch</strong>(array dispatch)</code>
+<div class="details">
+<p>设置或者获取当前请求的调度信息</p><dl>
+<dt>Parameters:</dt>
+<dd>dispatch - 调度信息</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1301" class="location">library\think\Request.php at line 1301</a>
+
+<h3 id="module()">module</h3>
+<code class="signature">public  string|$this <strong>module</strong>(string module)</code>
+<div class="details">
+<p>设置或者获取当前的模块名</p><dl>
+<dt>Parameters:</dt>
+<dd>module - 模块名</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1317" class="location">library\think\Request.php at line 1317</a>
+
+<h3 id="controller()">controller</h3>
+<code class="signature">public  string|$this <strong>controller</strong>(string controller)</code>
+<div class="details">
+<p>设置或者获取当前的控制器名</p><dl>
+<dt>Parameters:</dt>
+<dd>controller - 控制器名</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1333" class="location">library\think\Request.php at line 1333</a>
+
+<h3 id="action()">action</h3>
+<code class="signature">public  string <strong>action</strong>(string action)</code>
+<div class="details">
+<p>设置或者获取当前的操作名</p><dl>
+<dt>Parameters:</dt>
+<dd>action - 操作名</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1349" class="location">library\think\Request.php at line 1349</a>
+
+<h3 id="langset()">langset</h3>
+<code class="signature">public  string <strong>langset</strong>(string lang)</code>
+<div class="details">
+<p>设置或者获取当前的语言</p><dl>
+<dt>Parameters:</dt>
+<dd>lang - 语言名</dd>
+</dl>
+</div>
+
+<hr>
+
+<a href="../source/library/think/request.php.html#line1364" class="location">library\think\Request.php at line 1364</a>
+
+<h3 id="getContent()">getContent</h3>
+<code class="signature">public  string <strong>getContent</strong>()</code>
+<div class="details">
+<p>设置或者获取当前请求的content</p></div>
+
+<hr>
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li><a href="../think/package-summary.html">Namespace</a></li>
+<li class="active">Class</li>
+<li><a href="../think/package-tree.html">Tree</a></li>
+<li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../think\request.html" target="_top">No frames</a>
+</div>
+<div class="small_links">
+Summary: <a href="#summary_field">Field</a> | <a href="#summary_method">Method</a> | <a href="#summary_constr">Constr</a>
+Detail: <a href="#detail_field">Field</a> | <a href="#detail_method">Method</a> | <a href="#summary_constr">Constr</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

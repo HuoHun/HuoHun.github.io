@@ -1,0 +1,950 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\db\Connection.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\db\connection.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\db\Connection.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\db;
+<a name="line13"></a>
+<a name="line14"></a>use PDO;
+<a name="line15"></a>use PDOStatement;
+<a name="line16"></a>use think\App;
+<a name="line17"></a>use think\Collection;
+<a name="line18"></a>use think\Db;
+<a name="line19"></a>use think\db\exception\BindParamException;
+<a name="line20"></a>use think\db\Query;
+<a name="line21"></a>use think\Debug;
+<a name="line22"></a>use think\Exception;
+<a name="line23"></a>use think\exception\PDOException;
+<a name="line24"></a>use think\Log;
+<a name="line25"></a>
+<a name="line26"></a>abstract class Connection
+<a name="line27"></a>{
+<a name="line28"></a>
+<a name="line29"></a>    /** @var PDOStatement PDO操作实例 */
+<a name="line30"></a>    protected $PDOStatement;
+<a name="line31"></a>
+<a name="line32"></a>    /** @var string 当前SQL指令 */
+<a name="line33"></a>    protected $queryStr = '';
+<a name="line34"></a>    // 最后插入ID
+<a name="line35"></a>    protected $lastInsID;
+<a name="line36"></a>    // 返回或者影响记录数
+<a name="line37"></a>    protected $numRows = 0;
+<a name="line38"></a>    // 事务指令数
+<a name="line39"></a>    protected $transTimes = 0;
+<a name="line40"></a>    // 错误信息
+<a name="line41"></a>    protected $error = '';
+<a name="line42"></a>
+<a name="line43"></a>    /** @var PDO[] 数据库连接ID 支持多个连接 */
+<a name="line44"></a>    protected $links = [];
+<a name="line45"></a>
+<a name="line46"></a>    /** @var PDO 当前连接ID */
+<a name="line47"></a>    protected $linkID;
+<a name="line48"></a>    protected $linkRead;
+<a name="line49"></a>    protected $linkWrite;
+<a name="line50"></a>
+<a name="line51"></a>    // 查询结果类型
+<a name="line52"></a>    protected $resultSetType = 'array';
+<a name="line53"></a>    // 查询结果类型
+<a name="line54"></a>    protected $fetchType = PDO::FETCH_ASSOC;
+<a name="line55"></a>    // 字段属性大小写
+<a name="line56"></a>    protected $attrCase = PDO::CASE_LOWER;
+<a name="line57"></a>    // 监听回调
+<a name="line58"></a>    protected static $event = [];
+<a name="line59"></a>    // 查询对象
+<a name="line60"></a>    protected $query = [];
+<a name="line61"></a>    // 数据库连接参数配置
+<a name="line62"></a>    protected $config = [
+<a name="line63"></a>        // 数据库类型
+<a name="line64"></a>        'type'           => '',
+<a name="line65"></a>        // 服务器地址
+<a name="line66"></a>        'hostname'       => '',
+<a name="line67"></a>        // 数据库名
+<a name="line68"></a>        'database'       => '',
+<a name="line69"></a>        // 用户名
+<a name="line70"></a>        'username'       => '',
+<a name="line71"></a>        // 密码
+<a name="line72"></a>        'password'       => '',
+<a name="line73"></a>        // 端口
+<a name="line74"></a>        'hostport'       => '',
+<a name="line75"></a>        // 连接dsn
+<a name="line76"></a>        'dsn'            => '',
+<a name="line77"></a>        // 数据库连接参数
+<a name="line78"></a>        'params'         => [],
+<a name="line79"></a>        // 数据库编码默认采用utf8
+<a name="line80"></a>        'charset'        => 'utf8',
+<a name="line81"></a>        // 数据库表前缀
+<a name="line82"></a>        'prefix'         => '',
+<a name="line83"></a>        // 数据库调试模式
+<a name="line84"></a>        'debug'          => false,
+<a name="line85"></a>        // 数据库部署方式:0 集中式(单一服务器),1 分布式(主从服务器)
+<a name="line86"></a>        'deploy'         => 0,
+<a name="line87"></a>        // 数据库读写是否分离 主从式有效
+<a name="line88"></a>        'rw_separate'    => false,
+<a name="line89"></a>        // 读写分离后 主服务器数量
+<a name="line90"></a>        'master_num'     => 1,
+<a name="line91"></a>        // 指定从服务器序号
+<a name="line92"></a>        'slave_no'       => '',
+<a name="line93"></a>        // 是否严格检查字段是否存在
+<a name="line94"></a>        'fields_strict'  => true,
+<a name="line95"></a>        // 数据集返回类型
+<a name="line96"></a>        'resultset_type' => 'array',
+<a name="line97"></a>        // 自动写入时间戳字段
+<a name="line98"></a>        'auto_timestamp' => false,
+<a name="line99"></a>        // 是否需要进行SQL性能分析
+<a name="line100"></a>        'sql_explain'    => false,
+<a name="line101"></a>    ];
+<a name="line102"></a>
+<a name="line103"></a>    // PDO连接参数
+<a name="line104"></a>    protected $params = [
+<a name="line105"></a>        PDO::ATTR_CASE              => PDO::CASE_NATURAL,
+<a name="line106"></a>        PDO::ATTR_ERRMODE           => PDO::ERRMODE_EXCEPTION,
+<a name="line107"></a>        PDO::ATTR_ORACLE_NULLS      => PDO::NULL_NATURAL,
+<a name="line108"></a>        PDO::ATTR_STRINGIFY_FETCHES => false,
+<a name="line109"></a>        PDO::ATTR_EMULATE_PREPARES  => false,
+<a name="line110"></a>    ];
+<a name="line111"></a>
+<a name="line112"></a>    /**
+<a name="line113"></a>     * 架构函数 读取数据库配置信息
+<a name="line114"></a>     * @access public
+<a name="line115"></a>     * @param array $config 数据库配置数组
+<a name="line116"></a>     */
+<a name="line117"></a>    public function __construct(array $config = [])
+<a name="line118"></a>    {
+<a name="line119"></a>        if (!empty($config)) {
+<a name="line120"></a>            $this->config = array_merge($this->config, $config);
+<a name="line121"></a>        }
+<a name="line122"></a>    }
+<a name="line123"></a>
+<a name="line124"></a>    /**
+<a name="line125"></a>     * 创建指定模型的查询对象
+<a name="line126"></a>     * @access public
+<a name="line127"></a>     * @param string $model 模型类名称
+<a name="line128"></a>     * @return Query
+<a name="line129"></a>     */
+<a name="line130"></a>    public function model($model)
+<a name="line131"></a>    {
+<a name="line132"></a>        if (!isset($this->query[$model])) {
+<a name="line133"></a>            $this->query[$model] = new Query($this, $model);
+<a name="line134"></a>        }
+<a name="line135"></a>        return $this->query[$model];
+<a name="line136"></a>    }
+<a name="line137"></a>
+<a name="line138"></a>    /**
+<a name="line139"></a>     * 调用Query类的查询方法
+<a name="line140"></a>     * @access public
+<a name="line141"></a>     * @param string    $method 方法名称
+<a name="line142"></a>     * @param array     $args 调用参数
+<a name="line143"></a>     * @return mixed
+<a name="line144"></a>     */
+<a name="line145"></a>    public function __call($method, $args)
+<a name="line146"></a>    {
+<a name="line147"></a>        if (!isset($this->query['database'])) {
+<a name="line148"></a>            $this->query['database'] = new Query($this);
+<a name="line149"></a>        }
+<a name="line150"></a>        return call_user_func_array([$this->query['database'], $method], $args);
+<a name="line151"></a>    }
+<a name="line152"></a>
+<a name="line153"></a>    /**
+<a name="line154"></a>     * 解析pdo连接的dsn信息
+<a name="line155"></a>     * @access protected
+<a name="line156"></a>     * @param array $config 连接信息
+<a name="line157"></a>     * @return string
+<a name="line158"></a>     */
+<a name="line159"></a>    abstract protected function parseDsn($config);
+<a name="line160"></a>
+<a name="line161"></a>    /**
+<a name="line162"></a>     * 取得数据表的字段信息
+<a name="line163"></a>     * @access public
+<a name="line164"></a>     * @param string $tableName
+<a name="line165"></a>     * @return array
+<a name="line166"></a>     */
+<a name="line167"></a>    abstract public function getFields($tableName);
+<a name="line168"></a>
+<a name="line169"></a>    /**
+<a name="line170"></a>     * 取得数据库的表信息
+<a name="line171"></a>     * @access public
+<a name="line172"></a>     * @param string $dbName
+<a name="line173"></a>     * @return array
+<a name="line174"></a>     */
+<a name="line175"></a>    abstract public function getTables($dbName);
+<a name="line176"></a>
+<a name="line177"></a>    /**
+<a name="line178"></a>     * SQL性能分析
+<a name="line179"></a>     * @access protected
+<a name="line180"></a>     * @param string $sql
+<a name="line181"></a>     * @return array
+<a name="line182"></a>     */
+<a name="line183"></a>    abstract protected function getExplain($sql);
+<a name="line184"></a>
+<a name="line185"></a>    /**
+<a name="line186"></a>     * 对返数据表字段信息进行大小写转换出来
+<a name="line187"></a>     * @access public
+<a name="line188"></a>     * @param array $info 字段信息
+<a name="line189"></a>     * @return array
+<a name="line190"></a>     */
+<a name="line191"></a>    public function fieldCase($info)
+<a name="line192"></a>    {
+<a name="line193"></a>        // 字段大小写转换
+<a name="line194"></a>        switch ($this->attrCase) {
+<a name="line195"></a>            case PDO::CASE_LOWER:
+<a name="line196"></a>                $info = array_change_key_case($info);
+<a name="line197"></a>                break;
+<a name="line198"></a>            case PDO::CASE_UPPER:
+<a name="line199"></a>                $info = array_change_key_case($info, CASE_UPPER);
+<a name="line200"></a>                break;
+<a name="line201"></a>            case PDO::CASE_NATURAL:
+<a name="line202"></a>            default:
+<a name="line203"></a>                // 不做转换
+<a name="line204"></a>        }
+<a name="line205"></a>        return $info;
+<a name="line206"></a>    }
+<a name="line207"></a>
+<a name="line208"></a>    /**
+<a name="line209"></a>     * 获取数据库的配置参数
+<a name="line210"></a>     * @access public
+<a name="line211"></a>     * @param string $config 配置名称
+<a name="line212"></a>     * @return mixed
+<a name="line213"></a>     */
+<a name="line214"></a>    public function getConfig($config = '')
+<a name="line215"></a>    {
+<a name="line216"></a>        return $config ? $this->config[$config] : $this->config;
+<a name="line217"></a>    }
+<a name="line218"></a>
+<a name="line219"></a>    /**
+<a name="line220"></a>     * 设置数据库的配置参数
+<a name="line221"></a>     * @access public
+<a name="line222"></a>     * @param string    $config 配置名称
+<a name="line223"></a>     * @param mixed     $value 配置值
+<a name="line224"></a>     * @return void
+<a name="line225"></a>     */
+<a name="line226"></a>    public function setConfig($config, $value)
+<a name="line227"></a>    {
+<a name="line228"></a>        $this->config[$config] = $value;
+<a name="line229"></a>    }
+<a name="line230"></a>
+<a name="line231"></a>    /**
+<a name="line232"></a>     * 连接数据库方法
+<a name="line233"></a>     * @access public
+<a name="line234"></a>     * @param array         $config 连接参数
+<a name="line235"></a>     * @param integer       $linkNum 连接序号
+<a name="line236"></a>     * @param array|bool    $autoConnection 是否自动连接主数据库（用于分布式）
+<a name="line237"></a>     * @return PDO
+<a name="line238"></a>     * @throws Exception
+<a name="line239"></a>     */
+<a name="line240"></a>    public function connect(array $config = [], $linkNum = 0, $autoConnection = false)
+<a name="line241"></a>    {
+<a name="line242"></a>        if (!isset($this->links[$linkNum])) {
+<a name="line243"></a>            if (empty($config)) {
+<a name="line244"></a>                $config = $this->config;
+<a name="line245"></a>            }
+<a name="line246"></a>            // 连接参数
+<a name="line247"></a>            if (isset($config['params']) && is_array($config['params'])) {
+<a name="line248"></a>                $params = $config['params'] + $this->params;
+<a name="line249"></a>            } else {
+<a name="line250"></a>                $params = $this->params;
+<a name="line251"></a>            }
+<a name="line252"></a>            // 记录当前字段属性大小写设置
+<a name="line253"></a>            $this->attrCase = $params[PDO::ATTR_CASE];
+<a name="line254"></a>            // 记录数据集返回类型
+<a name="line255"></a>            if (isset($config['resultset_type'])) {
+<a name="line256"></a>                $this->resultSetType = $config['resultset_type'];
+<a name="line257"></a>            }
+<a name="line258"></a>            try {
+<a name="line259"></a>                if (empty($config['dsn'])) {
+<a name="line260"></a>                    $config['dsn'] = $this->parseDsn($config);
+<a name="line261"></a>                }
+<a name="line262"></a>                $this->links[$linkNum] = new PDO($config['dsn'], $config['username'], $config['password'], $params);
+<a name="line263"></a>                // 记录数据库连接信息
+<a name="line264"></a>                App::$debug && Log::record('[ DB ] CONNECT: ' . $config['dsn'], 'info');
+<a name="line265"></a>            } catch (\PDOException $e) {
+<a name="line266"></a>                if ($autoConnection) {
+<a name="line267"></a>                    Log::record($e->getMessage(), 'error');
+<a name="line268"></a>                    return $this->connect($autoConnection, $linkNum);
+<a name="line269"></a>                } else {
+<a name="line270"></a>                    throw new Exception($e->getMessage());
+<a name="line271"></a>                }
+<a name="line272"></a>            }
+<a name="line273"></a>        }
+<a name="line274"></a>        return $this->links[$linkNum];
+<a name="line275"></a>    }
+<a name="line276"></a>
+<a name="line277"></a>    /**
+<a name="line278"></a>     * 获取当前数据库的驱动类型
+<a name="line279"></a>     * @access public
+<a name="line280"></a>     * @return string
+<a name="line281"></a>     */
+<a name="line282"></a>    public function getDriverName()
+<a name="line283"></a>    {
+<a name="line284"></a>        if ($this->linkID) {
+<a name="line285"></a>            return $this->linkID->getAttribute(PDO::ATTR_DRIVER_NAME);
+<a name="line286"></a>        } else {
+<a name="line287"></a>            return basename(str_replace('\\', '/', $this->config['type']));
+<a name="line288"></a>        }
+<a name="line289"></a>    }
+<a name="line290"></a>
+<a name="line291"></a>    /**
+<a name="line292"></a>     * 释放查询结果
+<a name="line293"></a>     * @access public
+<a name="line294"></a>     */
+<a name="line295"></a>    public function free()
+<a name="line296"></a>    {
+<a name="line297"></a>        $this->PDOStatement = null;
+<a name="line298"></a>    }
+<a name="line299"></a>
+<a name="line300"></a>    /**
+<a name="line301"></a>     * 获取PDO对象
+<a name="line302"></a>     * @access public
+<a name="line303"></a>     * @return \PDO|false
+<a name="line304"></a>     */
+<a name="line305"></a>    public function getPdo()
+<a name="line306"></a>    {
+<a name="line307"></a>        if (!$this->linkID) {
+<a name="line308"></a>            return false;
+<a name="line309"></a>        } else {
+<a name="line310"></a>            return $this->linkID;
+<a name="line311"></a>        }
+<a name="line312"></a>    }
+<a name="line313"></a>
+<a name="line314"></a>    /**
+<a name="line315"></a>     * 执行查询 返回数据集
+<a name="line316"></a>     * @access public
+<a name="line317"></a>     * @param string        $sql sql指令
+<a name="line318"></a>     * @param array         $bind 参数绑定
+<a name="line319"></a>     * @param boolean       $master 是否在主服务器读操作
+<a name="line320"></a>     * @param bool|string   $class 指定返回的数据集对象
+<a name="line321"></a>     * @return mixed
+<a name="line322"></a>     * @throws BindParamException
+<a name="line323"></a>     * @throws PDOException
+<a name="line324"></a>     */
+<a name="line325"></a>    public function query($sql, $bind = [], $master = false, $class = false)
+<a name="line326"></a>    {
+<a name="line327"></a>        $this->initConnect($master);
+<a name="line328"></a>        if (!$this->linkID) {
+<a name="line329"></a>            return false;
+<a name="line330"></a>        }
+<a name="line331"></a>        // 根据参数绑定组装最终的SQL语句
+<a name="line332"></a>        $this->queryStr = $this->getRealSql($sql, $bind);
+<a name="line333"></a>
+<a name="line334"></a>        //释放前次的查询结果
+<a name="line335"></a>        if (!empty($this->PDOStatement)) {
+<a name="line336"></a>            $this->free();
+<a name="line337"></a>        }
+<a name="line338"></a>
+<a name="line339"></a>        Db::$queryTimes++;
+<a name="line340"></a>        try {
+<a name="line341"></a>            // 调试开始
+<a name="line342"></a>            $this->debug(true);
+<a name="line343"></a>            // 预处理
+<a name="line344"></a>            $this->PDOStatement = $this->linkID->prepare($sql);
+<a name="line345"></a>            // 参数绑定
+<a name="line346"></a>            $this->bindValue($bind);
+<a name="line347"></a>            // 执行查询
+<a name="line348"></a>            $result = $this->PDOStatement->execute();
+<a name="line349"></a>            // 调试结束
+<a name="line350"></a>            $this->debug(false);
+<a name="line351"></a>            $procedure = 0 === strpos(strtolower(substr(trim($sql), 0, 4)), 'call');
+<a name="line352"></a>            return $this->getResult($class, $procedure);
+<a name="line353"></a>        } catch (\PDOException $e) {
+<a name="line354"></a>            throw new PDOException($e, $this->config, $this->queryStr);
+<a name="line355"></a>        }
+<a name="line356"></a>    }
+<a name="line357"></a>
+<a name="line358"></a>    /**
+<a name="line359"></a>     * 执行语句
+<a name="line360"></a>     * @access public
+<a name="line361"></a>     * @param string        $sql sql指令
+<a name="line362"></a>     * @param array         $bind 参数绑定
+<a name="line363"></a>     * @param boolean       $getLastInsID 是否获取自增ID
+<a name="line364"></a>     * @param string        $sequence 自增序列名
+<a name="line365"></a>     * @return int
+<a name="line366"></a>     * @throws BindParamException
+<a name="line367"></a>     * @throws PDOException
+<a name="line368"></a>     */
+<a name="line369"></a>    public function execute($sql, $bind = [], $getLastInsID = false, $sequence = null)
+<a name="line370"></a>    {
+<a name="line371"></a>        $this->initConnect(true);
+<a name="line372"></a>        if (!$this->linkID) {
+<a name="line373"></a>            return false;
+<a name="line374"></a>        }
+<a name="line375"></a>        // 根据参数绑定组装最终的SQL语句
+<a name="line376"></a>        $this->queryStr = $this->getRealSql($sql, $bind);
+<a name="line377"></a>
+<a name="line378"></a>        //释放前次的查询结果
+<a name="line379"></a>        if (!empty($this->PDOStatement)) {
+<a name="line380"></a>            $this->free();
+<a name="line381"></a>        }
+<a name="line382"></a>
+<a name="line383"></a>        Db::$executeTimes++;
+<a name="line384"></a>        try {
+<a name="line385"></a>            // 调试开始
+<a name="line386"></a>            $this->debug(true);
+<a name="line387"></a>            // 预处理
+<a name="line388"></a>            $this->PDOStatement = $this->linkID->prepare($sql);
+<a name="line389"></a>            // 参数绑定操作
+<a name="line390"></a>            $this->bindValue($bind);
+<a name="line391"></a>            // 执行语句
+<a name="line392"></a>            $result = $this->PDOStatement->execute();
+<a name="line393"></a>            // 调试结束
+<a name="line394"></a>            $this->debug(false);
+<a name="line395"></a>
+<a name="line396"></a>            $this->numRows = $this->PDOStatement->rowCount();
+<a name="line397"></a>            if (preg_match("/^\s*(INSERT\s+INTO|REPLACE\s+INTO)\s+/i", $sql)) {
+<a name="line398"></a>                $this->lastInsID = $this->linkID->lastInsertId($sequence);
+<a name="line399"></a>                if ($getLastInsID) {
+<a name="line400"></a>                    return $this->lastInsID;
+<a name="line401"></a>                }
+<a name="line402"></a>            }
+<a name="line403"></a>            return $this->numRows;
+<a name="line404"></a>        } catch (\PDOException $e) {
+<a name="line405"></a>            throw new PDOException($e, $this->config, $this->queryStr);
+<a name="line406"></a>        }
+<a name="line407"></a>    }
+<a name="line408"></a>
+<a name="line409"></a>    /**
+<a name="line410"></a>     * 根据参数绑定组装最终的SQL语句 便于调试
+<a name="line411"></a>     * @access public
+<a name="line412"></a>     * @param string    $sql 带参数绑定的sql语句
+<a name="line413"></a>     * @param array     $bind 参数绑定列表
+<a name="line414"></a>     * @return string
+<a name="line415"></a>     */
+<a name="line416"></a>    public function getRealSql($sql, array $bind = [])
+<a name="line417"></a>    {
+<a name="line418"></a>        if ($bind) {
+<a name="line419"></a>            foreach ($bind as $key => $val) {
+<a name="line420"></a>                $val = $this->quote(is_array($val) ? $val[0] : $val);
+<a name="line421"></a>                // 判断占位符
+<a name="line422"></a>                $sql = is_numeric($key) ?
+<a name="line423"></a>                substr_replace($sql, $val, strpos($sql, '?'), 1) :
+<a name="line424"></a>                str_replace(
+<a name="line425"></a>                    [':' . $key . ')', ':' . $key . ',', ':' . $key . ' '],
+<a name="line426"></a>                    [$val . ')', $val . ',', $val . ' '],
+<a name="line427"></a>                    $sql . ' ');
+<a name="line428"></a>            }
+<a name="line429"></a>        }
+<a name="line430"></a>        return $sql;
+<a name="line431"></a>    }
+<a name="line432"></a>
+<a name="line433"></a>    /**
+<a name="line434"></a>     * 参数绑定
+<a name="line435"></a>     * 支持 ['name'=>'value','id'=>123] 对应命名占位符
+<a name="line436"></a>     * 或者 ['value',123] 对应问号占位符
+<a name="line437"></a>     * @access public
+<a name="line438"></a>     * @param array $bind 要绑定的参数列表
+<a name="line439"></a>     * @return void
+<a name="line440"></a>     * @throws \think\Exception
+<a name="line441"></a>     */
+<a name="line442"></a>    protected function bindValue(array $bind = [])
+<a name="line443"></a>    {
+<a name="line444"></a>        foreach ($bind as $key => $val) {
+<a name="line445"></a>            // 占位符
+<a name="line446"></a>            $param = is_numeric($key) ? $key + 1 : ':' . $key;
+<a name="line447"></a>            if (is_array($val)) {
+<a name="line448"></a>                $result = $this->PDOStatement->bindValue($param, $val[0], $val[1]);
+<a name="line449"></a>            } else {
+<a name="line450"></a>                $result = $this->PDOStatement->bindValue($param, $val);
+<a name="line451"></a>            }
+<a name="line452"></a>            if (!$result) {
+<a name="line453"></a>                throw new BindParamException(
+<a name="line454"></a>                    "Error occurred  when binding parameters '{$param}'",
+<a name="line455"></a>                    $this->config,
+<a name="line456"></a>                    $this->queryStr,
+<a name="line457"></a>                    $bind
+<a name="line458"></a>                );
+<a name="line459"></a>            }
+<a name="line460"></a>        }
+<a name="line461"></a>    }
+<a name="line462"></a>
+<a name="line463"></a>    /**
+<a name="line464"></a>     * 获得数据集
+<a name="line465"></a>     * @access protected
+<a name="line466"></a>     * @param bool|string   $class true 返回PDOStatement 字符串用于指定返回的类名
+<a name="line467"></a>     * @param bool          $procedure 是否存储过程
+<a name="line468"></a>     * @return mixed
+<a name="line469"></a>     */
+<a name="line470"></a>    protected function getResult($class = '', $procedure = false)
+<a name="line471"></a>    {
+<a name="line472"></a>        if (true === $class) {
+<a name="line473"></a>            // 返回PDOStatement对象处理
+<a name="line474"></a>            return $this->PDOStatement;
+<a name="line475"></a>        }
+<a name="line476"></a>        if ($procedure) {
+<a name="line477"></a>            // 存储过程返回结果
+<a name="line478"></a>            return $this->procedure($class);
+<a name="line479"></a>        }
+<a name="line480"></a>        $result        = $this->PDOStatement->fetchAll($this->fetchType);
+<a name="line481"></a>        $this->numRows = count($result);
+<a name="line482"></a>
+<a name="line483"></a>        if (!empty($class)) {
+<a name="line484"></a>            // 返回指定数据集对象类
+<a name="line485"></a>            $result = new $class($result);
+<a name="line486"></a>        } elseif ('collection' == $this->resultSetType) {
+<a name="line487"></a>            // 返回数据集Collection对象
+<a name="line488"></a>            $result = new Collection($result);
+<a name="line489"></a>        }
+<a name="line490"></a>        return $result;
+<a name="line491"></a>    }
+<a name="line492"></a>
+<a name="line493"></a>    /**
+<a name="line494"></a>     * 获得存储过程数据集
+<a name="line495"></a>     * @access protected
+<a name="line496"></a>     * @param bool|string $class true 返回PDOStatement 字符串用于指定返回的类名
+<a name="line497"></a>     * @return array
+<a name="line498"></a>     */
+<a name="line499"></a>    protected function procedure($class)
+<a name="line500"></a>    {
+<a name="line501"></a>        $item = [];
+<a name="line502"></a>        do {
+<a name="line503"></a>            $result = $this->getResult($class);
+<a name="line504"></a>            if ($result) {
+<a name="line505"></a>                $item[] = $result;
+<a name="line506"></a>            }
+<a name="line507"></a>        } while ($this->PDOStatement->nextRowset());
+<a name="line508"></a>        $this->numRows = count($item);
+<a name="line509"></a>        return $item;
+<a name="line510"></a>    }
+<a name="line511"></a>
+<a name="line512"></a>    /**
+<a name="line513"></a>     * 执行数据库事务
+<a name="line514"></a>     * @access public
+<a name="line515"></a>     * @param callable $callback 数据操作方法回调
+<a name="line516"></a>     * @return mixed
+<a name="line517"></a>     * @throws PDOException
+<a name="line518"></a>     * @throws \Exception
+<a name="line519"></a>     * @throws \Throwable
+<a name="line520"></a>     */
+<a name="line521"></a>    public function transaction($callback)
+<a name="line522"></a>    {
+<a name="line523"></a>        $this->startTrans();
+<a name="line524"></a>        try {
+<a name="line525"></a>            $result = null;
+<a name="line526"></a>            if (is_callable($callback)) {
+<a name="line527"></a>                $result = call_user_func_array($callback, [$this]);
+<a name="line528"></a>            }
+<a name="line529"></a>            $this->commit();
+<a name="line530"></a>            return $result;
+<a name="line531"></a>        } catch (\Exception $e) {
+<a name="line532"></a>            $this->rollback();
+<a name="line533"></a>            throw $e;
+<a name="line534"></a>        } catch (\Throwable $e) {
+<a name="line535"></a>            $this->rollback();
+<a name="line536"></a>            throw $e;
+<a name="line537"></a>        }
+<a name="line538"></a>    }
+<a name="line539"></a>
+<a name="line540"></a>    /**
+<a name="line541"></a>     * 启动事务
+<a name="line542"></a>     * @access public
+<a name="line543"></a>     * @return bool|null
+<a name="line544"></a>     */
+<a name="line545"></a>    public function startTrans()
+<a name="line546"></a>    {
+<a name="line547"></a>        $this->initConnect(true);
+<a name="line548"></a>        if (!$this->linkID) {
+<a name="line549"></a>            return false;
+<a name="line550"></a>        }
+<a name="line551"></a>
+<a name="line552"></a>        ++$this->transTimes;
+<a name="line553"></a>
+<a name="line554"></a>        if (1 == $this->transTimes) {
+<a name="line555"></a>            $this->linkID->beginTransaction();
+<a name="line556"></a>        } elseif ($this->transTimes > 1 && $this->supportSavepoint()) {
+<a name="line557"></a>            $this->linkID->exec(
+<a name="line558"></a>                $this->parseSavepoint('trans' . $this->transTimes)
+<a name="line559"></a>            );
+<a name="line560"></a>        }
+<a name="line561"></a>    }
+<a name="line562"></a>
+<a name="line563"></a>    /**
+<a name="line564"></a>     * 用于非自动提交状态下面的查询提交
+<a name="line565"></a>     * @access public
+<a name="line566"></a>     * @return boolean
+<a name="line567"></a>     * @throws PDOException
+<a name="line568"></a>     */
+<a name="line569"></a>    public function commit()
+<a name="line570"></a>    {
+<a name="line571"></a>        $this->initConnect(true);
+<a name="line572"></a>
+<a name="line573"></a>        if (1 == $this->transTimes) {
+<a name="line574"></a>            $this->linkID->commit();
+<a name="line575"></a>        }
+<a name="line576"></a>
+<a name="line577"></a>        --$this->transTimes;
+<a name="line578"></a>    }
+<a name="line579"></a>
+<a name="line580"></a>    /**
+<a name="line581"></a>     * 事务回滚
+<a name="line582"></a>     * @access public
+<a name="line583"></a>     * @return boolean
+<a name="line584"></a>     * @throws PDOException
+<a name="line585"></a>     */
+<a name="line586"></a>    public function rollback()
+<a name="line587"></a>    {
+<a name="line588"></a>        $this->initConnect(true);
+<a name="line589"></a>
+<a name="line590"></a>        if (1 == $this->transTimes) {
+<a name="line591"></a>            $this->linkID->rollBack();
+<a name="line592"></a>        } elseif ($this->transTimes > 1 && $this->supportSavepoint()) {
+<a name="line593"></a>            $this->linkID->exec(
+<a name="line594"></a>                $this->parseSavepointRollBack('trans' . $this->transTimes)
+<a name="line595"></a>            );
+<a name="line596"></a>        }
+<a name="line597"></a>
+<a name="line598"></a>        $this->transTimes = max(0, $this->transTimes - 1);
+<a name="line599"></a>    }
+<a name="line600"></a>
+<a name="line601"></a>    /**
+<a name="line602"></a>     * 是否支持事务嵌套
+<a name="line603"></a>     * @return bool
+<a name="line604"></a>     */
+<a name="line605"></a>    protected function supportSavepoint()
+<a name="line606"></a>    {
+<a name="line607"></a>        return false;
+<a name="line608"></a>    }
+<a name="line609"></a>
+<a name="line610"></a>    /**
+<a name="line611"></a>     * 生成定义保存点的SQL
+<a name="line612"></a>     * @param $name
+<a name="line613"></a>     * @return string
+<a name="line614"></a>     */
+<a name="line615"></a>    protected function parseSavepoint($name)
+<a name="line616"></a>    {
+<a name="line617"></a>        return 'SAVEPOINT ' . $name;
+<a name="line618"></a>    }
+<a name="line619"></a>
+<a name="line620"></a>    /**
+<a name="line621"></a>     * 生成回滚到保存点的SQL
+<a name="line622"></a>     * @param $name
+<a name="line623"></a>     * @return string
+<a name="line624"></a>     */
+<a name="line625"></a>    protected function parseSavepointRollBack($name)
+<a name="line626"></a>    {
+<a name="line627"></a>        return 'ROLLBACK TO SAVEPOINT ' . $name;
+<a name="line628"></a>    }
+<a name="line629"></a>
+<a name="line630"></a>    /**
+<a name="line631"></a>     * 批处理执行SQL语句
+<a name="line632"></a>     * 批处理的指令都认为是execute操作
+<a name="line633"></a>     * @access public
+<a name="line634"></a>     * @param array $sqlArray SQL批处理指令
+<a name="line635"></a>     * @return boolean
+<a name="line636"></a>     */
+<a name="line637"></a>    public function batchQuery($sqlArray = [])
+<a name="line638"></a>    {
+<a name="line639"></a>        if (!is_array($sqlArray)) {
+<a name="line640"></a>            return false;
+<a name="line641"></a>        }
+<a name="line642"></a>        // 自动启动事务支持
+<a name="line643"></a>        $this->startTrans();
+<a name="line644"></a>        try {
+<a name="line645"></a>            foreach ($sqlArray as $sql) {
+<a name="line646"></a>                $this->execute($sql);
+<a name="line647"></a>            }
+<a name="line648"></a>            // 提交事务
+<a name="line649"></a>            $this->commit();
+<a name="line650"></a>        } catch (\Exception $e) {
+<a name="line651"></a>            $this->rollback();
+<a name="line652"></a>            throw $e;
+<a name="line653"></a>        }
+<a name="line654"></a>        return true;
+<a name="line655"></a>    }
+<a name="line656"></a>
+<a name="line657"></a>    /**
+<a name="line658"></a>     * 获得查询次数
+<a name="line659"></a>     * @access public
+<a name="line660"></a>     * @param boolean $execute 是否包含所有查询
+<a name="line661"></a>     * @return integer
+<a name="line662"></a>     */
+<a name="line663"></a>    public function getQueryTimes($execute = false)
+<a name="line664"></a>    {
+<a name="line665"></a>        return $execute ? Db::$queryTimes + Db::$executeTimes : Db::$queryTimes;
+<a name="line666"></a>    }
+<a name="line667"></a>
+<a name="line668"></a>    /**
+<a name="line669"></a>     * 获得执行次数
+<a name="line670"></a>     * @access public
+<a name="line671"></a>     * @return integer
+<a name="line672"></a>     */
+<a name="line673"></a>    public function getExecuteTimes()
+<a name="line674"></a>    {
+<a name="line675"></a>        return Db::$executeTimes;
+<a name="line676"></a>    }
+<a name="line677"></a>
+<a name="line678"></a>    /**
+<a name="line679"></a>     * 关闭数据库
+<a name="line680"></a>     * @access public
+<a name="line681"></a>     */
+<a name="line682"></a>    public function close()
+<a name="line683"></a>    {
+<a name="line684"></a>        $this->linkID = null;
+<a name="line685"></a>    }
+<a name="line686"></a>
+<a name="line687"></a>    /**
+<a name="line688"></a>     * 获取最近一次查询的sql语句
+<a name="line689"></a>     * @access public
+<a name="line690"></a>     * @return string
+<a name="line691"></a>     */
+<a name="line692"></a>    public function getLastSql()
+<a name="line693"></a>    {
+<a name="line694"></a>        return $this->queryStr;
+<a name="line695"></a>    }
+<a name="line696"></a>
+<a name="line697"></a>    /**
+<a name="line698"></a>     * 获取最近插入的ID
+<a name="line699"></a>     * @access public
+<a name="line700"></a>     * @return string
+<a name="line701"></a>     */
+<a name="line702"></a>    public function getLastInsID()
+<a name="line703"></a>    {
+<a name="line704"></a>        return $this->lastInsID;
+<a name="line705"></a>    }
+<a name="line706"></a>
+<a name="line707"></a>    /**
+<a name="line708"></a>     * 获取最近的错误信息
+<a name="line709"></a>     * @access public
+<a name="line710"></a>     * @return string
+<a name="line711"></a>     */
+<a name="line712"></a>    public function getError()
+<a name="line713"></a>    {
+<a name="line714"></a>        if ($this->PDOStatement) {
+<a name="line715"></a>            $error = $this->PDOStatement->errorInfo();
+<a name="line716"></a>            $error = $error[1] . ':' . $error[2];
+<a name="line717"></a>        } else {
+<a name="line718"></a>            $error = '';
+<a name="line719"></a>        }
+<a name="line720"></a>        if ('' != $this->queryStr) {
+<a name="line721"></a>            $error .= "\n [ SQL语句 ] : " . $this->queryStr;
+<a name="line722"></a>        }
+<a name="line723"></a>        return $error;
+<a name="line724"></a>    }
+<a name="line725"></a>
+<a name="line726"></a>    /**
+<a name="line727"></a>     * SQL指令安全过滤
+<a name="line728"></a>     * @access public
+<a name="line729"></a>     * @param string $str SQL字符串
+<a name="line730"></a>     * @return string
+<a name="line731"></a>     */
+<a name="line732"></a>    public function quote($str)
+<a name="line733"></a>    {
+<a name="line734"></a>        $this->initConnect();
+<a name="line735"></a>        return $this->linkID ? $this->linkID->quote($str) : $str;
+<a name="line736"></a>    }
+<a name="line737"></a>
+<a name="line738"></a>    /**
+<a name="line739"></a>     * 数据库调试 记录当前SQL及分析性能
+<a name="line740"></a>     * @access protected
+<a name="line741"></a>     * @param boolean $start 调试开始标记 true 开始 false 结束
+<a name="line742"></a>     * @return void
+<a name="line743"></a>     */
+<a name="line744"></a>    protected function debug($start)
+<a name="line745"></a>    {
+<a name="line746"></a>        if (!empty($this->config['debug'])) {
+<a name="line747"></a>            // 开启数据库调试模式
+<a name="line748"></a>            if ($start) {
+<a name="line749"></a>                Debug::remark('queryStartTime', 'time');
+<a name="line750"></a>            } else {
+<a name="line751"></a>                // 记录操作结束时间
+<a name="line752"></a>                Debug::remark('queryEndTime', 'time');
+<a name="line753"></a>                $runtime = Debug::getRangeTime('queryStartTime', 'queryEndTime');
+<a name="line754"></a>                $log     = $this->queryStr . ' [ RunTime:' . $runtime . 's ]';
+<a name="line755"></a>                $result  = [];
+<a name="line756"></a>                // SQL性能分析
+<a name="line757"></a>                if ($this->config['sql_explain'] && 0 === stripos(trim($this->queryStr), 'select')) {
+<a name="line758"></a>                    $result = $this->getExplain($this->queryStr);
+<a name="line759"></a>                }
+<a name="line760"></a>                // SQL监听
+<a name="line761"></a>                $this->trigger($this->queryStr, $runtime, $result);
+<a name="line762"></a>            }
+<a name="line763"></a>        }
+<a name="line764"></a>    }
+<a name="line765"></a>
+<a name="line766"></a>    /**
+<a name="line767"></a>     * 监听SQL执行
+<a name="line768"></a>     * @access public
+<a name="line769"></a>     * @param callable $callback 回调方法
+<a name="line770"></a>     * @return void
+<a name="line771"></a>     */
+<a name="line772"></a>    public function listen($callback)
+<a name="line773"></a>    {
+<a name="line774"></a>        self::$event[] = $callback;
+<a name="line775"></a>    }
+<a name="line776"></a>
+<a name="line777"></a>    /**
+<a name="line778"></a>     * 触发SQL事件
+<a name="line779"></a>     * @access protected
+<a name="line780"></a>     * @param string    $sql SQL语句
+<a name="line781"></a>     * @param float     $runtime SQL运行时间
+<a name="line782"></a>     * @param mixed     $explain SQL分析
+<a name="line783"></a>     * @return bool
+<a name="line784"></a>     */
+<a name="line785"></a>    protected function trigger($sql, $runtime, $explain = [])
+<a name="line786"></a>    {
+<a name="line787"></a>        if (!empty(self::$event)) {
+<a name="line788"></a>            foreach (self::$event as $callback) {
+<a name="line789"></a>                if (is_callable($callback)) {
+<a name="line790"></a>                    call_user_func_array($callback, [$sql, $runtime, $explain]);
+<a name="line791"></a>                }
+<a name="line792"></a>            }
+<a name="line793"></a>        } else {
+<a name="line794"></a>            // 未注册监听则记录到日志中
+<a name="line795"></a>            Log::record('[ SQL ] ' . $this->queryStr . ' [ RunTime:' . $runtime . 's ]', 'sql');
+<a name="line796"></a>            if (!empty($explain)) {
+<a name="line797"></a>                Log::record('[ EXPLAIN : ' . var_export($explain, true) . ' ]', 'sql');
+<a name="line798"></a>            }
+<a name="line799"></a>        }
+<a name="line800"></a>    }
+<a name="line801"></a>
+<a name="line802"></a>    /**
+<a name="line803"></a>     * 初始化数据库连接
+<a name="line804"></a>     * @access protected
+<a name="line805"></a>     * @param boolean $master 是否主服务器
+<a name="line806"></a>     * @return void
+<a name="line807"></a>     */
+<a name="line808"></a>    protected function initConnect($master = true)
+<a name="line809"></a>    {
+<a name="line810"></a>        if (!empty($this->config['deploy'])) {
+<a name="line811"></a>            // 采用分布式数据库
+<a name="line812"></a>            if ($master) {
+<a name="line813"></a>                if (!$this->linkWrite) {
+<a name="line814"></a>                    $this->linkWrite = $this->multiConnect(true);
+<a name="line815"></a>                }
+<a name="line816"></a>                $this->linkID = $this->linkWrite;
+<a name="line817"></a>            } else {
+<a name="line818"></a>                if (!$this->linkRead) {
+<a name="line819"></a>                    $this->linkRead = $this->multiConnect(false);
+<a name="line820"></a>                }
+<a name="line821"></a>                $this->linkID = $this->linkRead;
+<a name="line822"></a>            }
+<a name="line823"></a>        } elseif (!$this->linkID) {
+<a name="line824"></a>            // 默认单数据库
+<a name="line825"></a>            $this->linkID = $this->connect();
+<a name="line826"></a>        }
+<a name="line827"></a>    }
+<a name="line828"></a>
+<a name="line829"></a>    /**
+<a name="line830"></a>     * 连接分布式服务器
+<a name="line831"></a>     * @access protected
+<a name="line832"></a>     * @param boolean $master 主服务器
+<a name="line833"></a>     * @return PDO
+<a name="line834"></a>     */
+<a name="line835"></a>    protected function multiConnect($master = false)
+<a name="line836"></a>    {
+<a name="line837"></a>        $_config = [];
+<a name="line838"></a>        // 分布式数据库配置解析
+<a name="line839"></a>        foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
+<a name="line840"></a>            $_config[$name] = explode(',', $this->config[$name]);
+<a name="line841"></a>        }
+<a name="line842"></a>
+<a name="line843"></a>        // 主服务器序号
+<a name="line844"></a>        $m = floor(mt_rand(0, $this->config['master_num'] - 1));
+<a name="line845"></a>
+<a name="line846"></a>        if ($this->config['rw_separate']) {
+<a name="line847"></a>            // 主从式采用读写分离
+<a name="line848"></a>            if ($master) // 主服务器写入
+<a name="line849"></a>            {
+<a name="line850"></a>                $r = $m;
+<a name="line851"></a>            } elseif (is_numeric($this->config['slave_no'])) {
+<a name="line852"></a>                // 指定服务器读
+<a name="line853"></a>                $r = $this->config['slave_no'];
+<a name="line854"></a>            } else {
+<a name="line855"></a>                // 读操作连接从服务器 每次随机连接的数据库
+<a name="line856"></a>                $r = floor(mt_rand($this->config['master_num'], count($_config['hostname']) - 1));
+<a name="line857"></a>            }
+<a name="line858"></a>        } else {
+<a name="line859"></a>            // 读写操作不区分服务器 每次随机连接的数据库
+<a name="line860"></a>            $r = floor(mt_rand(0, count($_config['hostname']) - 1));
+<a name="line861"></a>        }
+<a name="line862"></a>        $dbMaster = false;
+<a name="line863"></a>        if ($m != $r) {
+<a name="line864"></a>            $dbMaster = [];
+<a name="line865"></a>            foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
+<a name="line866"></a>                $dbMaster[$name] = isset($_config[$name][$m]) ? $_config[$name][$m] : $_config[$name][0];
+<a name="line867"></a>            }
+<a name="line868"></a>        }
+<a name="line869"></a>        $dbConfig = [];
+<a name="line870"></a>        foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
+<a name="line871"></a>            $dbConfig[$name] = isset($_config[$name][$r]) ? $_config[$name][$r] : $_config[$name][0];
+<a name="line872"></a>        }
+<a name="line873"></a>        return $this->connect($dbConfig, $r, $r == $m ? false : $dbMaster);
+<a name="line874"></a>    }
+<a name="line875"></a>
+<a name="line876"></a>    /**
+<a name="line877"></a>     * 析构方法
+<a name="line878"></a>     * @access public
+<a name="line879"></a>     */
+<a name="line880"></a>    public function __destruct()
+<a name="line881"></a>    {
+<a name="line882"></a>        // 释放查询
+<a name="line883"></a>        if ($this->PDOStatement) {
+<a name="line884"></a>            $this->free();
+<a name="line885"></a>        }
+<a name="line886"></a>        // 关闭连接
+<a name="line887"></a>        $this->close();
+<a name="line888"></a>    }
+<a name="line889"></a>}
+<a name="line890"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\db\connection.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

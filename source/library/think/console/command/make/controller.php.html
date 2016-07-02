@@ -1,0 +1,156 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\console\command\make\Controller.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\command\make\controller.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\console\command\make\Controller.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: 刘志淳 <chun@engineer.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\console\command\make;
+<a name="line13"></a>
+<a name="line14"></a>use think\App;
+<a name="line15"></a>use think\console\Input;
+<a name="line16"></a>use think\console\input\Argument;
+<a name="line17"></a>use think\console\input\Option;
+<a name="line18"></a>use think\console\Output;
+<a name="line19"></a>
+<a name="line20"></a>class Controller extends \think\console\command\Make
+<a name="line21"></a>{
+<a name="line22"></a>    /**
+<a name="line23"></a>     * {@inheritdoc}
+<a name="line24"></a>     */
+<a name="line25"></a>    protected function configure()
+<a name="line26"></a>    {
+<a name="line27"></a>        $this
+<a name="line28"></a>            ->setName('make:controller')
+<a name="line29"></a>            ->setDescription('Create a new controller class')
+<a name="line30"></a>            ->addArgument('namespace', Argument::OPTIONAL, null)
+<a name="line31"></a>            ->addOption('module', 'm', Option::VALUE_OPTIONAL, 'Module Name', null)
+<a name="line32"></a>            ->addOption('extend', 'e', Option::VALUE_OPTIONAL, 'Base on Controller class', null);
+<a name="line33"></a>    }
+<a name="line34"></a>
+<a name="line35"></a>    protected function execute(Input $input, Output $output)
+<a name="line36"></a>    {
+<a name="line37"></a>        $namespace = $input->getArgument('namespace');
+<a name="line38"></a>        $module = $input->getOption('module');
+<a name="line39"></a>
+<a name="line40"></a>
+<a name="line41"></a>        // 处理命名空间
+<a name="line42"></a>        if (!empty($module)) {
+<a name="line43"></a>            $namespace = App::$namespace . "\\" . $module . "\\" . 'controller' . "\\" . $namespace;
+<a name="line44"></a>        }
+<a name="line45"></a>
+<a name="line46"></a>        // 处理继承
+<a name="line47"></a>        $extend = $input->getOption('extend');
+<a name="line48"></a>
+<a name="line49"></a>        if (empty($extend)) {
+<a name="line50"></a>            $extend = "\\think\\Controller";
+<a name="line51"></a>        } else {
+<a name="line52"></a>            if (!preg_match("/\\\/", $extend)) {
+<a name="line53"></a>                if (!empty($module)) {
+<a name="line54"></a>                    $extend = "\\" . App::$namespace . "\\" . $module . "\\" . 'controller' . "\\" . $extend;
+<a name="line55"></a>                }
+<a name="line56"></a>            }
+<a name="line57"></a>        }
+<a name="line58"></a>
+<a name="line59"></a>
+<a name="line60"></a>        $result = $this->build($namespace, $extend);
+<a name="line61"></a>        $output->writeln("output:" . $result);
+<a name="line62"></a>    }
+<a name="line63"></a>
+<a name="line64"></a>    private function build($namespace, $extend)
+<a name="line65"></a>    {
+<a name="line66"></a>        $tpl = file_get_contents(THINK_PATH . 'tpl' . DS . 'make_controller.tpl');
+<a name="line67"></a>
+<a name="line68"></a>        // comminute namespace
+<a name="line69"></a>        $allNamespace = self::formatNameSpace($namespace);
+<a name="line70"></a>        $namespace = implode('\\', $allNamespace[0]);
+<a name="line71"></a>        $className = ucwords($allNamespace[1]);
+<a name="line72"></a>
+<a name="line73"></a>        // 处理内容
+<a name="line74"></a>        $content = str_replace("{%extend%}", $extend,
+<a name="line75"></a>            str_replace("{%className%}", $className,
+<a name="line76"></a>                str_replace("{%namespace%}", $namespace, $tpl)
+<a name="line77"></a>            )
+<a name="line78"></a>        );
+<a name="line79"></a>
+<a name="line80"></a>        // 处理文件夹
+<a name="line81"></a>        $path = '';
+<a name="line82"></a>        foreach ($allNamespace[0] as $key => $value) {
+<a name="line83"></a>            if ($key >= 1) {
+<a name="line84"></a>                self::buildDir($path . $value);
+<a name="line85"></a>                $path .= $value . "\\";
+<a name="line86"></a>            }
+<a name="line87"></a>        }
+<a name="line88"></a>
+<a name="line89"></a>        // 处理文件
+<a name="line90"></a>        $file = $path . $className . '.php';
+<a name="line91"></a>        self::buildFile($file, $content);
+<a name="line92"></a>
+<a name="line93"></a>        return APP_PATH . $file;
+<a name="line94"></a>    }
+<a name="line95"></a>}
+<a name="line96"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\command\make\controller.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

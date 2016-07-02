@@ -1,0 +1,402 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\cache\driver\Redisd.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\cache\driver\redisd.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\cache\driver\Redisd.php</h1>
+<div class="comment" id="overview_description"><p>配置参数:
+'cache' => [
+'type'       => 'Redisd'
+'host'       => 'A:6379,B:6379', //redis服务器ip，多台用逗号隔开；读写分离开启时，默认写A，当A主挂时，再尝试写B
+'slave'      => 'B:6379,C:6379', //redis服务器ip，多台用逗号隔开；读写分离开启时，所有IP随机读，其中一台挂时，尝试读其它节点，可以配置权重
+'port'       => 6379,    //默认的端口号
+'password'   => '',      //AUTH认证密码，当redis服务直接暴露在外网时推荐
+'timeout'    => 10,      //连接超时时间
+'expire'     => false,   //默认过期时间，默认为永不过期
+'prefix'     => '',      //缓存前缀，不宜过长
+'persistent' => false,   //是否长连接 false=短连接，推荐长连接
+],</p><p>单例获取:
+$redis = \think\Cache::connect(Config::get('cache'));
+$redis->master(true)->setnx('key');
+$redis->master(false)->get('key');</p></div>
+
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\cache\driver;
+<a name="line13"></a>
+<a name="line14"></a>use think\App;
+<a name="line15"></a>use think\Cache;
+<a name="line16"></a>use think\Exception;
+<a name="line17"></a>use think\Log;
+<a name="line18"></a>
+<a name="line19"></a>/**
+<a name="line20"></a>配置参数:
+<a name="line21"></a>'cache' => [
+<a name="line22"></a>'type'       => 'Redisd'
+<a name="line23"></a>'host'       => 'A:6379,B:6379', //redis服务器ip，多台用逗号隔开；读写分离开启时，默认写A，当A主挂时，再尝试写B
+<a name="line24"></a>'slave'      => 'B:6379,C:6379', //redis服务器ip，多台用逗号隔开；读写分离开启时，所有IP随机读，其中一台挂时，尝试读其它节点，可以配置权重
+<a name="line25"></a>'port'       => 6379,    //默认的端口号
+<a name="line26"></a>'password'   => '',      //AUTH认证密码，当redis服务直接暴露在外网时推荐
+<a name="line27"></a>'timeout'    => 10,      //连接超时时间
+<a name="line28"></a>'expire'     => false,   //默认过期时间，默认为永不过期
+<a name="line29"></a>'prefix'     => '',      //缓存前缀，不宜过长
+<a name="line30"></a>'persistent' => false,   //是否长连接 false=短连接，推荐长连接
+<a name="line31"></a>],
+<a name="line32"></a>
+<a name="line33"></a>单例获取:
+<a name="line34"></a>$redis = \think\Cache::connect(Config::get('cache'));
+<a name="line35"></a>$redis->master(true)->setnx('key');
+<a name="line36"></a>$redis->master(false)->get('key');
+<a name="line37"></a> */
+<a name="line38"></a>
+<a name="line39"></a>/**
+<a name="line40"></a> * ThinkPHP Redis简单主从实现的高可用方案
+<a name="line41"></a> *
+<a name="line42"></a> * 扩展依赖：https://github.com/phpredis/phpredis
+<a name="line43"></a> *
+<a name="line44"></a> * 一主一从的实践经验
+<a name="line45"></a> * 1, A、B为主从，正常情况下，A写，B读，通过异步同步到B（或者双写，性能有损失）
+<a name="line46"></a> * 2, B挂，则读写均落到A
+<a name="line47"></a> * 3, A挂，则尝试升级B为主，并断开主从尝试写入(要求开启slave-read-only no)
+<a name="line48"></a> * 4, 手工恢复A，并加入B的从
+<a name="line49"></a> *
+<a name="line50"></a> * 优化建议
+<a name="line51"></a> * 1，key不宜过长，value过大时请自行压缩
+<a name="line52"></a> * 2，gzcompress在php7下有兼容问题
+<a name="line53"></a> *
+<a name="line54"></a> * @todo
+<a name="line55"></a> * 1, 增加对redisCluster的兼容
+<a name="line56"></a> * 2, 增加tp5下的单元测试
+<a name="line57"></a> *
+<a name="line58"></a> * @author 尘缘 <130775@qq.com>
+<a name="line59"></a> */
+<a name="line60"></a>class Redisd
+<a name="line61"></a>{
+<a name="line62"></a>    protected static $redis_rw_handler;
+<a name="line63"></a>    protected static $redis_err_pool;
+<a name="line64"></a>    protected $handler = null;
+<a name="line65"></a>
+<a name="line66"></a>    protected $options = [
+<a name="line67"></a>        'host'       => '127.0.0.1',
+<a name="line68"></a>        'slave'      => '',
+<a name="line69"></a>        'port'       => 6379,
+<a name="line70"></a>        'password'   => '',
+<a name="line71"></a>        'timeout'    => 10,
+<a name="line72"></a>        'expire'     => false,
+<a name="line73"></a>        'persistent' => false,
+<a name="line74"></a>        'prefix'     => '',
+<a name="line75"></a>        'serialize'  => \Redis::SERIALIZER_PHP,
+<a name="line76"></a>    ];
+<a name="line77"></a>
+<a name="line78"></a>    /**
+<a name="line79"></a>     * 为了在单次php请求中复用redis连接，第一次获取的options会被缓存，第二次使用不同的$options，将会无效
+<a name="line80"></a>     *
+<a name="line81"></a>     * @param  array $options 缓存参数
+<a name="line82"></a>     * @access public
+<a name="line83"></a>     */
+<a name="line84"></a>    public function __construct($options = [])
+<a name="line85"></a>    {
+<a name="line86"></a>        if (!extension_loaded('redis')) {
+<a name="line87"></a>            throw new \BadFunctionCallException('not support: redis');
+<a name="line88"></a>        }
+<a name="line89"></a>
+<a name="line90"></a>        $this->options         = $options         = array_merge($this->options, $options);
+<a name="line91"></a>        $this->options['func'] = $options['persistent'] ? 'pconnect' : 'connect';
+<a name="line92"></a>
+<a name="line93"></a>        $host  = explode(",", trim($this->options['host'], ","));
+<a name="line94"></a>        $host  = array_map("trim", $host);
+<a name="line95"></a>        $slave = explode(",", trim($this->options['slave'], ","));
+<a name="line96"></a>        $slave = array_map("trim", $slave);
+<a name="line97"></a>
+<a name="line98"></a>        $this->options["server_slave"]           = empty($slave) ? $host : $slave;
+<a name="line99"></a>        $this->options["servers"]                = count($slave);
+<a name="line100"></a>        $this->options["server_master"]          = array_shift($host);
+<a name="line101"></a>        $this->options["server_master_failover"] = $host;
+<a name="line102"></a>    }
+<a name="line103"></a>
+<a name="line104"></a>    /**
+<a name="line105"></a>     * 主从选择器，配置多个Host则自动启用读写分离，默认主写，随机从读
+<a name="line106"></a>     * 随机从读的场景适合读频繁，且php与redis从位于单机的架构，这样可以减少网络IO
+<a name="line107"></a>     * 一致Hash适合超高可用，跨网络读取，且从节点较多的情况，本业务不考虑该需求
+<a name="line108"></a>     *
+<a name="line109"></a>     * @access public
+<a name="line110"></a>     * @param  bool $master true 默认主写
+<a name="line111"></a>     * @return Redisd
+<a name="line112"></a>     */
+<a name="line113"></a>    public function master($master = true)
+<a name="line114"></a>    {
+<a name="line115"></a>        if (isset(self::$redis_rw_handler[$master])) {
+<a name="line116"></a>            $this->handler = self::$redis_rw_handler[$master];
+<a name="line117"></a>            return $this;
+<a name="line118"></a>        }
+<a name="line119"></a>
+<a name="line120"></a>        //如果不为主，则从配置的host剔除主，并随机读从，失败以后再随机选择从
+<a name="line121"></a>        //另外一种方案是根据key的一致性hash选择不同的node，但读写频繁的业务中可能打开大量的文件句柄
+<a name="line122"></a>        if (!$master && $this->options["servers"] > 1) {
+<a name="line123"></a>            shuffle($this->options["server_slave"]);
+<a name="line124"></a>            $host = array_shift($this->options["server_slave"]);
+<a name="line125"></a>        } else {
+<a name="line126"></a>            $host = $this->options["server_master"];
+<a name="line127"></a>        }
+<a name="line128"></a>
+<a name="line129"></a>        $this->handler = new \Redis();
+<a name="line130"></a>        $func          = $this->options['func'];
+<a name="line131"></a>
+<a name="line132"></a>        $parse = parse_url($host);
+<a name="line133"></a>        $host  = isset($parse['host']) ? $parse['host'] : $host;
+<a name="line134"></a>        $port  = isset($parse['host']) ? $parse['port'] : $this->options['port'];
+<a name="line135"></a>
+<a name="line136"></a>        //发生错误则摘掉当前节点
+<a name="line137"></a>        try {
+<a name="line138"></a>            $result = $this->handler->$func($host, $port, $this->options['timeout']);
+<a name="line139"></a>            if (false === $result) {
+<a name="line140"></a>                $this->handler->getLastError();
+<a name="line141"></a>            }
+<a name="line142"></a>
+<a name="line143"></a>            if (null != $this->options['password']) {
+<a name="line144"></a>                $this->handler->auth($this->options['password']);
+<a name="line145"></a>            }
+<a name="line146"></a>
+<a name="line147"></a>            $this->handler->setOption(\Redis::OPT_SERIALIZER, $this->options['serialize']);
+<a name="line148"></a>            if (strlen($this->options['prefix'])) {
+<a name="line149"></a>                $this->handler->setOption(\Redis::OPT_PREFIX, $this->options['prefix']);
+<a name="line150"></a>            }
+<a name="line151"></a>
+<a name="line152"></a>            App::$debug && Log::record("[ CACHE ] INIT Redisd : {$host}:{$port} master->" . var_export($master, true), Log::ALERT);
+<a name="line153"></a>        } catch (\RedisException $e) {
+<a name="line154"></a>            //phpredis throws a RedisException object if it can't reach the Redis server.
+<a name="line155"></a>            //That can happen in case of connectivity issues, if the Redis service is down, or if the redis host is overloaded.
+<a name="line156"></a>            //In any other problematic case that does not involve an unreachable server
+<a name="line157"></a>            //(such as a key not existing, an invalid command, etc), phpredis will return FALSE.
+<a name="line158"></a>
+<a name="line159"></a>            Log::record(sprintf("redisd->%s:%s:%s:%s", $master ? "master" : "salve", $host, $port, $e->getMessage()), Log::ALERT);
+<a name="line160"></a>
+<a name="line161"></a>            //主节点挂了以后，尝试连接主备，断开主备的主从连接进行升主
+<a name="line162"></a>            if ($master) {
+<a name="line163"></a>                if (!count($this->options["server_master_failover"])) {
+<a name="line164"></a>                    throw new Exception("redisd master: no more server_master_failover. {$host}:{$port} : " . $e->getMessage());
+<a name="line165"></a>                    return false;
+<a name="line166"></a>                }
+<a name="line167"></a>
+<a name="line168"></a>                $this->options["server_master"] = array_shift($this->options["server_master_failover"]);
+<a name="line169"></a>                $this->master();
+<a name="line170"></a>
+<a name="line171"></a>                Log::record(sprintf("master is down, try server_master_failover : %s", $this->options["server_master"]), Log::ERROR);
+<a name="line172"></a>
+<a name="line173"></a>                //如果是slave，断开主从升主，需要手工同步新主的数据到旧主上
+<a name="line174"></a>                //目前这块的逻辑未经过严格测试
+<a name="line175"></a>                //$this->handler->slaveof();
+<a name="line176"></a>            } else {
+<a name="line177"></a>                //尝试failover，如果有其它节点则进行其它节点的尝试
+<a name="line178"></a>                foreach ($this->options["server_slave"] as $k => $v) {
+<a name="line179"></a>                    if (trim($v) == trim($host)) {
+<a name="line180"></a>                        unset($this->options["server_slave"][$k]);
+<a name="line181"></a>                    }
+<a name="line182"></a>                }
+<a name="line183"></a>
+<a name="line184"></a>                //如果无可用节点，则抛出异常
+<a name="line185"></a>                if (!count($this->options["server_slave"])) {
+<a name="line186"></a>                    Log::record("已无可用Redis读节点", Log::ERROR);
+<a name="line187"></a>                    throw new Exception("redisd slave: no more server_slave. {$host}:{$port} : " . $e->getMessage());
+<a name="line188"></a>                    return false;
+<a name="line189"></a>                } else {
+<a name="line190"></a>                    Log::record("salve {$host}:{$port} is down, try another one.", Log::ALERT);
+<a name="line191"></a>                    return $this->master(false);
+<a name="line192"></a>                }
+<a name="line193"></a>            }
+<a name="line194"></a>        } catch (\Exception $e) {
+<a name="line195"></a>            throw new Exception($e->getMessage(), $e->getCode());
+<a name="line196"></a>        }
+<a name="line197"></a>
+<a name="line198"></a>        self::$redis_rw_handler[$master] = $this->handler;
+<a name="line199"></a>        return $this;
+<a name="line200"></a>    }
+<a name="line201"></a>
+<a name="line202"></a>    /**
+<a name="line203"></a>     * 读取缓存
+<a name="line204"></a>     *
+<a name="line205"></a>     * @access public
+<a name="line206"></a>     * @param  string $name 缓存key
+<a name="line207"></a>     * @param  bool   $master 指定主从节点，可以从主节点获取结果
+<a name="line208"></a>     * @return mixed
+<a name="line209"></a>     */
+<a name="line210"></a>    public function get($name, $master = false)
+<a name="line211"></a>    {
+<a name="line212"></a>        $this->master($master);
+<a name="line213"></a>
+<a name="line214"></a>        try {
+<a name="line215"></a>            $value = $this->handler->get($name);
+<a name="line216"></a>        } catch (\RedisException $e) {
+<a name="line217"></a>            unset(self::$redis_rw_handler[0]);
+<a name="line218"></a>
+<a name="line219"></a>            $this->master();
+<a name="line220"></a>            return $this->get($name);
+<a name="line221"></a>        } catch (\Exception $e) {
+<a name="line222"></a>            Log::record($e->getMessage(), Log::ERROR);
+<a name="line223"></a>        }
+<a name="line224"></a>
+<a name="line225"></a>        return isset($value) ? $value : null;
+<a name="line226"></a>    }
+<a name="line227"></a>
+<a name="line228"></a>    /**
+<a name="line229"></a>     * 写入缓存
+<a name="line230"></a>     *
+<a name="line231"></a>     * @access public
+<a name="line232"></a>     * @param  string  $name   缓存key
+<a name="line233"></a>     * @param  mixed   $value  缓存value
+<a name="line234"></a>     * @param  integer $expire 过期时间，单位秒
+<a name="line235"></a>     * @return boolen
+<a name="line236"></a>     */
+<a name="line237"></a>    public function set($name, $value, $expire = null)
+<a name="line238"></a>    {
+<a name="line239"></a>        $this->master(true);
+<a name="line240"></a>
+<a name="line241"></a>        if (is_null($expire)) {
+<a name="line242"></a>            $expire = $this->options['expire'];
+<a name="line243"></a>        }
+<a name="line244"></a>
+<a name="line245"></a>        try {
+<a name="line246"></a>            if (null === $value) {
+<a name="line247"></a>                return $this->handler->delete($name);
+<a name="line248"></a>            }
+<a name="line249"></a>
+<a name="line250"></a>            if (is_int($expire) && $expire) {
+<a name="line251"></a>                $result = $this->handler->setex($name, $expire, $value);
+<a name="line252"></a>            } else {
+<a name="line253"></a>                $result = $this->handler->set($name, $value);
+<a name="line254"></a>            }
+<a name="line255"></a>        } catch (\RedisException $e) {
+<a name="line256"></a>            unset(self::$redis_rw_handler[1]);
+<a name="line257"></a>
+<a name="line258"></a>            $this->master(true);
+<a name="line259"></a>            return $this->set($name, $value, $expire);
+<a name="line260"></a>        } catch (\Exception $e) {
+<a name="line261"></a>            Log::record($e->getMessage());
+<a name="line262"></a>        }
+<a name="line263"></a>
+<a name="line264"></a>        return $result;
+<a name="line265"></a>    }
+<a name="line266"></a>
+<a name="line267"></a>    /**
+<a name="line268"></a>     * 删除缓存
+<a name="line269"></a>     *
+<a name="line270"></a>     * @access public
+<a name="line271"></a>     * @param  string $name 缓存变量名
+<a name="line272"></a>     * @return boolen
+<a name="line273"></a>     */
+<a name="line274"></a>    public function rm($name)
+<a name="line275"></a>    {
+<a name="line276"></a>        $this->master(true);
+<a name="line277"></a>        return $this->handler->delete($name);
+<a name="line278"></a>    }
+<a name="line279"></a>
+<a name="line280"></a>    /**
+<a name="line281"></a>     * 清除缓存
+<a name="line282"></a>     *
+<a name="line283"></a>     * @access public
+<a name="line284"></a>     * @return boolen
+<a name="line285"></a>     */
+<a name="line286"></a>    public function clear()
+<a name="line287"></a>    {
+<a name="line288"></a>        $this->master(true);
+<a name="line289"></a>        return $this->handler->flushDB();
+<a name="line290"></a>    }
+<a name="line291"></a>
+<a name="line292"></a>    /**
+<a name="line293"></a>     * 返回句柄对象，可执行其它高级方法
+<a name="line294"></a>     * 需要先执行 $redis->master() 连接到 DB
+<a name="line295"></a>     *
+<a name="line296"></a>     * @access public
+<a name="line297"></a>     * @param  bool   $master 指定主从节点，可以从主节点获取结果
+<a name="line298"></a>     * @return \Redis
+<a name="line299"></a>     */
+<a name="line300"></a>    public function handler($master = true)
+<a name="line301"></a>    {
+<a name="line302"></a>        $this->master($master);
+<a name="line303"></a>        return $this->handler;
+<a name="line304"></a>    }
+<a name="line305"></a>
+<a name="line306"></a>    /**
+<a name="line307"></a>     * 析构释放连接
+<a name="line308"></a>     *
+<a name="line309"></a>     * @access public
+<a name="line310"></a>     */
+<a name="line311"></a>    public function __destruct()
+<a name="line312"></a>    {
+<a name="line313"></a>        //该方法仅在connect连接时有效
+<a name="line314"></a>        //当使用pconnect时，连接会被重用，连接的生命周期是fpm进程的生命周期，而非一次php的执行。
+<a name="line315"></a>        //如果代码中使用pconnect， close的作用仅是使当前php不能再进行redis请求，但无法真正关闭redis长连接，连接在后续请求中仍然会被重用，直至fpm进程生命周期结束。
+<a name="line316"></a>
+<a name="line317"></a>        try {
+<a name="line318"></a>            if (method_exists($this->handler, "close")) {
+<a name="line319"></a>                $this->handler->close();
+<a name="line320"></a>            }
+<a name="line321"></a>
+<a name="line322"></a>        } catch (\Exception $e) {
+<a name="line323"></a>        }
+<a name="line324"></a>    }
+<a name="line325"></a>}
+<a name="line326"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\cache\driver\redisd.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

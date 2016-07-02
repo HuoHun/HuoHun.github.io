@@ -1,0 +1,353 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\model\Merge.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\model\merge.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\model\Merge.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\model;
+<a name="line13"></a>
+<a name="line14"></a>use think\Db;
+<a name="line15"></a>use think\Model;
+<a name="line16"></a>
+<a name="line17"></a>class Merge extends Model
+<a name="line18"></a>{
+<a name="line19"></a>
+<a name="line20"></a>    protected static $relationModel = []; // HAS ONE 关联的模型列表
+<a name="line21"></a>    protected $fk                   = ''; //  外键名 默认为主表名_id
+<a name="line22"></a>    protected $mapFields            = []; //  需要处理的模型映射字段，避免混淆 array( id => 'user.id'  )
+<a name="line23"></a>
+<a name="line24"></a>    /**
+<a name="line25"></a>     * 架构函数
+<a name="line26"></a>     * @access public
+<a name="line27"></a>     * @param array|object $data 数据
+<a name="line28"></a>     */
+<a name="line29"></a>    public function __construct($data = [])
+<a name="line30"></a>    {
+<a name="line31"></a>        parent::__construct($data);
+<a name="line32"></a>
+<a name="line33"></a>        // 设置默认外键名 仅支持单一外键
+<a name="line34"></a>        if (empty($this->fk)) {
+<a name="line35"></a>            $this->fk = strtolower($this->name) . '_id';
+<a name="line36"></a>        }
+<a name="line37"></a>    }
+<a name="line38"></a>
+<a name="line39"></a>    /**
+<a name="line40"></a>     * 查找单条记录
+<a name="line41"></a>     * @access public
+<a name="line42"></a>     * @param mixed     $data 主键值或者查询条件（闭包）
+<a name="line43"></a>     * @param string    $with 关联预查询
+<a name="line44"></a>     * @param bool      $cache 是否缓存
+<a name="line45"></a>     * @return \think\Model
+<a name="line46"></a>     */
+<a name="line47"></a>    public static function get($data = null, $with = [], $cache = false)
+<a name="line48"></a>    {
+<a name="line49"></a>        $query = self::parseQuery($data, $with, $cache);
+<a name="line50"></a>        $query = self::attachQuery($query);
+<a name="line51"></a>        return $query->find($data);
+<a name="line52"></a>    }
+<a name="line53"></a>
+<a name="line54"></a>    /**
+<a name="line55"></a>     * 附加查询表达式
+<a name="line56"></a>     * @access protected
+<a name="line57"></a>     * @param \think\db\Query $query 查询对象
+<a name="line58"></a>     * @return \think\db\Query
+<a name="line59"></a>     */
+<a name="line60"></a>    protected static function attachQuery($query)
+<a name="line61"></a>    {
+<a name="line62"></a>        $class  = new static();
+<a name="line63"></a>        $master = $class->name;
+<a name="line64"></a>        $fields = self::getModelField($query, $master, '', $class->mapFields);
+<a name="line65"></a>        $query->alias($master)->field($fields);
+<a name="line66"></a>
+<a name="line67"></a>        foreach (static::$relationModel as $key => $model) {
+<a name="line68"></a>            $name  = is_int($key) ? $model : $key;
+<a name="line69"></a>            $table = is_int($key) ? $query->getTable($name) : $model;
+<a name="line70"></a>            $query->join($table . ' ' . $name, $name . '.' . $class->fk . '=' . $master . '.' . $class->getPk());
+<a name="line71"></a>            $fields = self::getModelField($query, $name, $table, $class->mapFields);
+<a name="line72"></a>            $query->field($fields);
+<a name="line73"></a>        }
+<a name="line74"></a>        return $query;
+<a name="line75"></a>    }
+<a name="line76"></a>
+<a name="line77"></a>    /**
+<a name="line78"></a>     * 获取关联模型的字段 并解决混淆
+<a name="line79"></a>     * @access protected
+<a name="line80"></a>     * @param \think\db\Query   $query 查询对象
+<a name="line81"></a>     * @param string            $name 模型名称
+<a name="line82"></a>     * @param string            $table 关联表名称
+<a name="line83"></a>     * @param array             $map 字段映射
+<a name="line84"></a>     * @return array
+<a name="line85"></a>     */
+<a name="line86"></a>    protected static function getModelField($query, $name, $table = '', $map = [])
+<a name="line87"></a>    {
+<a name="line88"></a>        // 获取模型的字段信息
+<a name="line89"></a>        $fields = $query->getTableInfo($table, 'fields');
+<a name="line90"></a>        $array  = [];
+<a name="line91"></a>        foreach ($fields as $field) {
+<a name="line92"></a>            if ($key = array_search($name . '.' . $field, $map)) {
+<a name="line93"></a>                // 需要处理映射字段
+<a name="line94"></a>                $array[] = $name . '.' . $field . ' AS ' . $key;
+<a name="line95"></a>            } else {
+<a name="line96"></a>                $array[] = $field;
+<a name="line97"></a>            }
+<a name="line98"></a>        }
+<a name="line99"></a>        return $array;
+<a name="line100"></a>    }
+<a name="line101"></a>
+<a name="line102"></a>    /**
+<a name="line103"></a>     * 查找所有记录
+<a name="line104"></a>     * @access public
+<a name="line105"></a>     * @param mixed     $data 主键列表或者查询条件（闭包）
+<a name="line106"></a>     * @param string    $with 关联预查询
+<a name="line107"></a>     * @return array|false|string
+<a name="line108"></a>     */
+<a name="line109"></a>    public static function all($data = null, $with = [], $cache = false)
+<a name="line110"></a>    {
+<a name="line111"></a>        $query = self::parseQuery($data, $with, $cache);
+<a name="line112"></a>        $query = self::attachQuery($query);
+<a name="line113"></a>        return $query->select($data);
+<a name="line114"></a>    }
+<a name="line115"></a>
+<a name="line116"></a>    /**
+<a name="line117"></a>     * 处理写入的模型数据
+<a name="line118"></a>     * @access public
+<a name="line119"></a>     * @param string    $model 模型名称
+<a name="line120"></a>     * @param array     $data 数据
+<a name="line121"></a>     * @param bool      $insert 是否新增
+<a name="line122"></a>     * @return void
+<a name="line123"></a>     */
+<a name="line124"></a>    protected function parseData($model, $data, $insert = false)
+<a name="line125"></a>    {
+<a name="line126"></a>        $item = [];
+<a name="line127"></a>        foreach ($data as $key => $val) {
+<a name="line128"></a>            if ($insert || in_array($key, $this->change) || $this->isPk($key)) {
+<a name="line129"></a>                if (array_key_exists($key, $this->mapFields)) {
+<a name="line130"></a>                    list($name, $key) = explode('.', $this->mapFields[$key]);
+<a name="line131"></a>                    if ($model == $name) {
+<a name="line132"></a>                        $item[$key] = $val;
+<a name="line133"></a>                    }
+<a name="line134"></a>                } else {
+<a name="line135"></a>                    $item[$key] = $val;
+<a name="line136"></a>                }
+<a name="line137"></a>            }
+<a name="line138"></a>        }
+<a name="line139"></a>        return $item;
+<a name="line140"></a>    }
+<a name="line141"></a>
+<a name="line142"></a>    /**
+<a name="line143"></a>     * 保存模型数据 以及关联数据
+<a name="line144"></a>     * @access public
+<a name="line145"></a>     * @param mixed     $data 数据
+<a name="line146"></a>     * @param array     $where 更新条件
+<a name="line147"></a>     * @param bool      $getId 新增的时候是否获取id
+<a name="line148"></a>     * @param bool      $replace 是否replace
+<a name="line149"></a>     * @return mixed
+<a name="line150"></a>     */
+<a name="line151"></a>    public function save($data = [], $where = [], $getId = true, $replace = false)
+<a name="line152"></a>    {
+<a name="line153"></a>        if (!empty($data)) {
+<a name="line154"></a>            // 数据自动验证
+<a name="line155"></a>            if (!$this->validateData($data)) {
+<a name="line156"></a>                return false;
+<a name="line157"></a>            }
+<a name="line158"></a>            // 数据对象赋值
+<a name="line159"></a>            foreach ($data as $key => $value) {
+<a name="line160"></a>                $this->setAttr($key, $value);
+<a name="line161"></a>            }
+<a name="line162"></a>            if (!empty($where)) {
+<a name="line163"></a>                $this->isUpdate = true;
+<a name="line164"></a>            }
+<a name="line165"></a>        }
+<a name="line166"></a>
+<a name="line167"></a>        // 数据自动完成
+<a name="line168"></a>        $this->autoCompleteData($this->auto);
+<a name="line169"></a>
+<a name="line170"></a>        // 自动写入更新时间
+<a name="line171"></a>        if ($this->autoWriteTimestamp && $this->updateTime) {
+<a name="line172"></a>            $this->setAttr($this->updateTime, null);
+<a name="line173"></a>        }
+<a name="line174"></a>
+<a name="line175"></a>        $db = $this->db();
+<a name="line176"></a>        $db->startTrans();
+<a name="line177"></a>        try {
+<a name="line178"></a>            if ($this->isUpdate) {
+<a name="line179"></a>                // 自动写入
+<a name="line180"></a>                $this->autoCompleteData($this->update);
+<a name="line181"></a>
+<a name="line182"></a>                if (false === $this->trigger('before_update', $this)) {
+<a name="line183"></a>                    return false;
+<a name="line184"></a>                }
+<a name="line185"></a>
+<a name="line186"></a>                if (empty($where) && !empty($this->updateWhere)) {
+<a name="line187"></a>                    $where = $this->updateWhere;
+<a name="line188"></a>                }
+<a name="line189"></a>
+<a name="line190"></a>                if (!empty($where)) {
+<a name="line191"></a>                    $pk = $this->getPk();
+<a name="line192"></a>                    if (is_string($pk) && isset($data[$pk])) {
+<a name="line193"></a>                        unset($data[$pk]);
+<a name="line194"></a>                    }
+<a name="line195"></a>                }
+<a name="line196"></a>
+<a name="line197"></a>                // 处理模型数据
+<a name="line198"></a>                $data = $this->parseData($this->name, $this->data);
+<a name="line199"></a>                // 写入主表数据
+<a name="line200"></a>                $result = $db->strict(false)->where($where)->update($data);
+<a name="line201"></a>
+<a name="line202"></a>                // 写入附表数据
+<a name="line203"></a>                foreach (static::$relationModel as $key => $model) {
+<a name="line204"></a>                    $name  = is_int($key) ? $model : $key;
+<a name="line205"></a>                    $table = is_int($key) ? $db->getTable($model) : $model;
+<a name="line206"></a>                    // 处理关联模型数据
+<a name="line207"></a>                    $data  = $this->parseData($name, $this->data);
+<a name="line208"></a>                    $query = clone $db;
+<a name="line209"></a>                    $query->table($table)->strict(false)->where($this->fk, $this->data[$this->getPk()])->update($data);
+<a name="line210"></a>                }
+<a name="line211"></a>                // 新增回调
+<a name="line212"></a>                $this->trigger('after_update', $this);
+<a name="line213"></a>            } else {
+<a name="line214"></a>                // 自动写入
+<a name="line215"></a>                $this->autoCompleteData($this->insert);
+<a name="line216"></a>
+<a name="line217"></a>                // 自动写入创建时间
+<a name="line218"></a>                if ($this->autoWriteTimestamp && $this->createTime) {
+<a name="line219"></a>                    $this->setAttr($this->createTime, null);
+<a name="line220"></a>                }
+<a name="line221"></a>
+<a name="line222"></a>                if (false === $this->trigger('before_insert', $this)) {
+<a name="line223"></a>                    return false;
+<a name="line224"></a>                }
+<a name="line225"></a>
+<a name="line226"></a>                // 处理模型数据
+<a name="line227"></a>                $data = $this->parseData($this->name, $this->data);
+<a name="line228"></a>                // 写入主表数据
+<a name="line229"></a>                $result = $db->name($this->name)->strict(false)->insert($data, $replace);
+<a name="line230"></a>                if ($result) {
+<a name="line231"></a>                    $insertId = $db->getLastInsID();
+<a name="line232"></a>                    // 写入外键数据
+<a name="line233"></a>                    $this->data[$this->fk] = $insertId;
+<a name="line234"></a>
+<a name="line235"></a>                    // 写入附表数据
+<a name="line236"></a>                    foreach (static::$relationModel as $key => $model) {
+<a name="line237"></a>                        $name  = is_int($key) ? $model : $key;
+<a name="line238"></a>                        $table = is_int($key) ? $db->getTable($model) : $model;
+<a name="line239"></a>                        // 处理关联模型数据
+<a name="line240"></a>                        $data  = $this->parseData($name, $this->data, true);
+<a name="line241"></a>                        $query = clone $db;
+<a name="line242"></a>                        $query->table($table)->strict(false)->insert($data);
+<a name="line243"></a>                    }
+<a name="line244"></a>                    $result = $insertId;
+<a name="line245"></a>                }
+<a name="line246"></a>                // 新增回调
+<a name="line247"></a>                $this->trigger('after_insert', $this);
+<a name="line248"></a>            }
+<a name="line249"></a>            $db->commit();
+<a name="line250"></a>            return $result;
+<a name="line251"></a>        } catch (\Exception $e) {
+<a name="line252"></a>            $db->rollback();
+<a name="line253"></a>            throw $e;
+<a name="line254"></a>        }
+<a name="line255"></a>    }
+<a name="line256"></a>
+<a name="line257"></a>    /**
+<a name="line258"></a>     * 删除当前的记录 并删除关联数据
+<a name="line259"></a>     * @access public
+<a name="line260"></a>     * @return integer
+<a name="line261"></a>     */
+<a name="line262"></a>    public function delete()
+<a name="line263"></a>    {
+<a name="line264"></a>        if (false === $this->trigger('before_delete', $this)) {
+<a name="line265"></a>            return false;
+<a name="line266"></a>        }
+<a name="line267"></a>
+<a name="line268"></a>        $db = $this->db();
+<a name="line269"></a>        $db->startTrans();
+<a name="line270"></a>        try {
+<a name="line271"></a>            $result = $db->delete($this->data);
+<a name="line272"></a>            if ($result) {
+<a name="line273"></a>                // 获取主键数据
+<a name="line274"></a>                $pk = $this->data[$this->getPk()];
+<a name="line275"></a>
+<a name="line276"></a>                // 删除关联数据
+<a name="line277"></a>                foreach (static::$relationModel as $key => $model) {
+<a name="line278"></a>                    $table = is_int($key) ? $db->getTable($model) : $model;
+<a name="line279"></a>                    $query = clone $db;
+<a name="line280"></a>                    $query->table($table)->where($this->fk, $pk)->delete();
+<a name="line281"></a>                }
+<a name="line282"></a>            }
+<a name="line283"></a>            $this->trigger('after_delete', $this);
+<a name="line284"></a>            $db->commit();
+<a name="line285"></a>            return $result;
+<a name="line286"></a>        } catch (\Exception $e) {
+<a name="line287"></a>            $db->rollback();
+<a name="line288"></a>            throw $e;
+<a name="line289"></a>        }
+<a name="line290"></a>    }
+<a name="line291"></a>
+<a name="line292"></a>}
+<a name="line293"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\model\merge.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

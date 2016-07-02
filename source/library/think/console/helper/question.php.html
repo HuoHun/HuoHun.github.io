@@ -1,0 +1,455 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\console\helper\Question.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\helper\question.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\console\helper\Question.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2015 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: yunwuxin <448901948@qq.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\console\helper;
+<a name="line13"></a>
+<a name="line14"></a>use think\console\helper\question\Choice as ChoiceQuestion;
+<a name="line15"></a>use think\console\helper\question\Question as OutputQuestion;
+<a name="line16"></a>use think\console\Input;
+<a name="line17"></a>use think\console\Output;
+<a name="line18"></a>use think\console\output\formatter\Style as OutputFormatterStyle;
+<a name="line19"></a>
+<a name="line20"></a>class Question extends Helper
+<a name="line21"></a>{
+<a name="line22"></a>
+<a name="line23"></a>    private $inputStream;
+<a name="line24"></a>    private static $shell;
+<a name="line25"></a>    private static $stty;
+<a name="line26"></a>
+<a name="line27"></a>    /**
+<a name="line28"></a>     * 向用户提问
+<a name="line29"></a>     * @param Input          $input
+<a name="line30"></a>     * @param Output         $output
+<a name="line31"></a>     * @param OutputQuestion $question
+<a name="line32"></a>     * @return string
+<a name="line33"></a>     */
+<a name="line34"></a>    public function ask(Input $input, Output $output, OutputQuestion $question)
+<a name="line35"></a>    {
+<a name="line36"></a>        if (!$input->isInteractive()) {
+<a name="line37"></a>            return $question->getDefault();
+<a name="line38"></a>        }
+<a name="line39"></a>
+<a name="line40"></a>        if (!$question->getValidator()) {
+<a name="line41"></a>            return $this->doAsk($output, $question);
+<a name="line42"></a>        }
+<a name="line43"></a>
+<a name="line44"></a>        $interviewer = function () use ($output, $question) {
+<a name="line45"></a>            return $this->doAsk($output, $question);
+<a name="line46"></a>        };
+<a name="line47"></a>
+<a name="line48"></a>        return $this->validateAttempts($interviewer, $output, $question);
+<a name="line49"></a>    }
+<a name="line50"></a>
+<a name="line51"></a>    /**
+<a name="line52"></a>     * 设置输入流
+<a name="line53"></a>     * @param resource $stream
+<a name="line54"></a>     * @throws \InvalidArgumentException
+<a name="line55"></a>     */
+<a name="line56"></a>    public function setInputStream($stream)
+<a name="line57"></a>    {
+<a name="line58"></a>        if (!is_resource($stream)) {
+<a name="line59"></a>            throw new \InvalidArgumentException('Input stream must be a valid resource.');
+<a name="line60"></a>        }
+<a name="line61"></a>
+<a name="line62"></a>        $this->inputStream = $stream;
+<a name="line63"></a>    }
+<a name="line64"></a>
+<a name="line65"></a>    /**
+<a name="line66"></a>     * 获取输入流
+<a name="line67"></a>     * @return resource
+<a name="line68"></a>     */
+<a name="line69"></a>    public function getInputStream()
+<a name="line70"></a>    {
+<a name="line71"></a>        return $this->inputStream;
+<a name="line72"></a>    }
+<a name="line73"></a>
+<a name="line74"></a>    /**
+<a name="line75"></a>     * {@inheritdoc}
+<a name="line76"></a>     */
+<a name="line77"></a>    public function getName()
+<a name="line78"></a>    {
+<a name="line79"></a>        return 'question';
+<a name="line80"></a>    }
+<a name="line81"></a>
+<a name="line82"></a>    /**
+<a name="line83"></a>     * 提问
+<a name="line84"></a>     * @param Output         $output
+<a name="line85"></a>     * @param OutputQuestion $question
+<a name="line86"></a>     * @return bool|mixed|null|string
+<a name="line87"></a>     * @throws \Exception
+<a name="line88"></a>     * @throws \RuntimeException
+<a name="line89"></a>     */
+<a name="line90"></a>    private function doAsk(Output $output, OutputQuestion $question)
+<a name="line91"></a>    {
+<a name="line92"></a>        $this->writePrompt($output, $question);
+<a name="line93"></a>
+<a name="line94"></a>        $inputStream  = $this->inputStream ?: STDIN;
+<a name="line95"></a>        $autocomplete = $question->getAutocompleterValues();
+<a name="line96"></a>
+<a name="line97"></a>        if (null === $autocomplete || !$this->hasSttyAvailable()) {
+<a name="line98"></a>            $ret = false;
+<a name="line99"></a>            if ($question->isHidden()) {
+<a name="line100"></a>                try {
+<a name="line101"></a>                    $ret = trim($this->getHiddenResponse($output, $inputStream));
+<a name="line102"></a>                } catch (\RuntimeException $e) {
+<a name="line103"></a>                    if (!$question->isHiddenFallback()) {
+<a name="line104"></a>                        throw $e;
+<a name="line105"></a>                    }
+<a name="line106"></a>                }
+<a name="line107"></a>            }
+<a name="line108"></a>
+<a name="line109"></a>            if (false === $ret) {
+<a name="line110"></a>                $ret = fgets($inputStream, 4096);
+<a name="line111"></a>                if (false === $ret) {
+<a name="line112"></a>                    throw new \RuntimeException('Aborted');
+<a name="line113"></a>                }
+<a name="line114"></a>                $ret = trim($ret);
+<a name="line115"></a>            }
+<a name="line116"></a>        } else {
+<a name="line117"></a>            $ret = trim($this->autocomplete($output, $question, $inputStream));
+<a name="line118"></a>        }
+<a name="line119"></a>
+<a name="line120"></a>        $ret = strlen($ret) > 0 ? $ret : $question->getDefault();
+<a name="line121"></a>
+<a name="line122"></a>        if ($normalizer = $question->getNormalizer()) {
+<a name="line123"></a>            return $normalizer($ret);
+<a name="line124"></a>        }
+<a name="line125"></a>
+<a name="line126"></a>        return $ret;
+<a name="line127"></a>    }
+<a name="line128"></a>
+<a name="line129"></a>    /**
+<a name="line130"></a>     * 显示提示
+<a name="line131"></a>     * @param Output         $output
+<a name="line132"></a>     * @param OutputQuestion $question
+<a name="line133"></a>     */
+<a name="line134"></a>    protected function writePrompt(Output $output, OutputQuestion $question)
+<a name="line135"></a>    {
+<a name="line136"></a>        $message = $question->getQuestion();
+<a name="line137"></a>
+<a name="line138"></a>        if ($question instanceof ChoiceQuestion) {
+<a name="line139"></a>            $width = max(array_map('strlen', array_keys($question->getChoices())));
+<a name="line140"></a>
+<a name="line141"></a>            $messages = (array) $question->getQuestion();
+<a name="line142"></a>            foreach ($question->getChoices() as $key => $value) {
+<a name="line143"></a>                $messages[] = sprintf("  [<info>%-${width}s</info>] %s", $key, $value);
+<a name="line144"></a>            }
+<a name="line145"></a>
+<a name="line146"></a>            $output->writeln($messages);
+<a name="line147"></a>
+<a name="line148"></a>            $message = $question->getPrompt();
+<a name="line149"></a>        }
+<a name="line150"></a>
+<a name="line151"></a>        $output->write($message);
+<a name="line152"></a>    }
+<a name="line153"></a>
+<a name="line154"></a>    /**
+<a name="line155"></a>     * 输出错误
+<a name="line156"></a>     * @param Output     $output
+<a name="line157"></a>     * @param \Exception $error
+<a name="line158"></a>     */
+<a name="line159"></a>    protected function writeError(Output $output, \Exception $error)
+<a name="line160"></a>    {
+<a name="line161"></a>        if (null !== $this->getHelperSet() && $this->getHelperSet()->has('formatter')) {
+<a name="line162"></a>            $message = $this->getHelperSet()->get('formatter')->formatBlock($error->getMessage(), 'error');
+<a name="line163"></a>        } else {
+<a name="line164"></a>            $message = '<error>' . $error->getMessage() . '</error>';
+<a name="line165"></a>        }
+<a name="line166"></a>
+<a name="line167"></a>        $output->writeln($message);
+<a name="line168"></a>    }
+<a name="line169"></a>
+<a name="line170"></a>    /**
+<a name="line171"></a>     * 自动完成问题
+<a name="line172"></a>     * @param Output         $output
+<a name="line173"></a>     * @param OutputQuestion $question
+<a name="line174"></a>     * @param                $inputStream
+<a name="line175"></a>     * @return string
+<a name="line176"></a>     */
+<a name="line177"></a>    private function autocomplete(Output $output, OutputQuestion $question, $inputStream)
+<a name="line178"></a>    {
+<a name="line179"></a>        $autocomplete = $question->getAutocompleterValues();
+<a name="line180"></a>        $ret          = '';
+<a name="line181"></a>
+<a name="line182"></a>        $i          = 0;
+<a name="line183"></a>        $ofs        = -1;
+<a name="line184"></a>        $matches    = $autocomplete;
+<a name="line185"></a>        $numMatches = count($matches);
+<a name="line186"></a>
+<a name="line187"></a>        $sttyMode = shell_exec('stty -g');
+<a name="line188"></a>
+<a name="line189"></a>        shell_exec('stty -icanon -echo');
+<a name="line190"></a>
+<a name="line191"></a>        $output->getFormatter()->setStyle('hl', new OutputFormatterStyle('black', 'white'));
+<a name="line192"></a>
+<a name="line193"></a>        while (!feof($inputStream)) {
+<a name="line194"></a>            $c = fread($inputStream, 1);
+<a name="line195"></a>
+<a name="line196"></a>            if ("\177" === $c) {
+<a name="line197"></a>                if (0 === $numMatches && 0 !== $i) {
+<a name="line198"></a>                    $i--;
+<a name="line199"></a>                    $output->write("\033[1D");
+<a name="line200"></a>                }
+<a name="line201"></a>
+<a name="line202"></a>                if (0 === $i) {
+<a name="line203"></a>                    $ofs        = -1;
+<a name="line204"></a>                    $matches    = $autocomplete;
+<a name="line205"></a>                    $numMatches = count($matches);
+<a name="line206"></a>                } else {
+<a name="line207"></a>                    $numMatches = 0;
+<a name="line208"></a>                }
+<a name="line209"></a>
+<a name="line210"></a>                $ret = substr($ret, 0, $i);
+<a name="line211"></a>            } elseif ("\033" === $c) {
+<a name="line212"></a>                $c .= fread($inputStream, 2);
+<a name="line213"></a>
+<a name="line214"></a>                if (isset($c[2]) && ('A' === $c[2] || 'B' === $c[2])) {
+<a name="line215"></a>                    if ('A' === $c[2] && -1 === $ofs) {
+<a name="line216"></a>                        $ofs = 0;
+<a name="line217"></a>                    }
+<a name="line218"></a>
+<a name="line219"></a>                    if (0 === $numMatches) {
+<a name="line220"></a>                        continue;
+<a name="line221"></a>                    }
+<a name="line222"></a>
+<a name="line223"></a>                    $ofs += ('A' === $c[2]) ? -1 : 1;
+<a name="line224"></a>                    $ofs = ($numMatches + $ofs) % $numMatches;
+<a name="line225"></a>                }
+<a name="line226"></a>            } elseif (ord($c) < 32) {
+<a name="line227"></a>                if ("\t" === $c || "\n" === $c) {
+<a name="line228"></a>                    if ($numMatches > 0 && -1 !== $ofs) {
+<a name="line229"></a>                        $ret = $matches[$ofs];
+<a name="line230"></a>                        $output->write(substr($ret, $i));
+<a name="line231"></a>                        $i = strlen($ret);
+<a name="line232"></a>                    }
+<a name="line233"></a>
+<a name="line234"></a>                    if ("\n" === $c) {
+<a name="line235"></a>                        $output->write($c);
+<a name="line236"></a>                        break;
+<a name="line237"></a>                    }
+<a name="line238"></a>
+<a name="line239"></a>                    $numMatches = 0;
+<a name="line240"></a>                }
+<a name="line241"></a>
+<a name="line242"></a>                continue;
+<a name="line243"></a>            } else {
+<a name="line244"></a>                $output->write($c);
+<a name="line245"></a>                $ret .= $c;
+<a name="line246"></a>                $i++;
+<a name="line247"></a>
+<a name="line248"></a>                $numMatches = 0;
+<a name="line249"></a>                $ofs        = 0;
+<a name="line250"></a>
+<a name="line251"></a>                foreach ($autocomplete as $value) {
+<a name="line252"></a>                    if (0 === strpos($value, $ret) && strlen($value) !== $i) {
+<a name="line253"></a>                        $matches[$numMatches++] = $value;
+<a name="line254"></a>                    }
+<a name="line255"></a>                }
+<a name="line256"></a>            }
+<a name="line257"></a>
+<a name="line258"></a>            $output->write("\033[K");
+<a name="line259"></a>
+<a name="line260"></a>            if ($numMatches > 0 && -1 !== $ofs) {
+<a name="line261"></a>                $output->write("\0337");
+<a name="line262"></a>                $output->write('<hl>' . substr($matches[$ofs], $i) . '</hl>');
+<a name="line263"></a>                $output->write("\0338");
+<a name="line264"></a>            }
+<a name="line265"></a>        }
+<a name="line266"></a>
+<a name="line267"></a>        shell_exec(sprintf('stty %s', $sttyMode));
+<a name="line268"></a>
+<a name="line269"></a>        return $ret;
+<a name="line270"></a>    }
+<a name="line271"></a>
+<a name="line272"></a>    /**
+<a name="line273"></a>     * 从用户获取隐藏的响应
+<a name="line274"></a>     * @param Output $output
+<a name="line275"></a>     * @return string
+<a name="line276"></a>     * @throws \RuntimeException
+<a name="line277"></a>     */
+<a name="line278"></a>    private function getHiddenResponse(Output $output, $inputStream)
+<a name="line279"></a>    {
+<a name="line280"></a>        if ('\\' === DS) {
+<a name="line281"></a>            $exe = __DIR__ . '/../bin/hiddeninput.exe';
+<a name="line282"></a>
+<a name="line283"></a>            if ('phar:' === substr(__FILE__, 0, 5)) {
+<a name="line284"></a>                $tmpExe = sys_get_temp_dir() . '/hiddeninput.exe';
+<a name="line285"></a>                copy($exe, $tmpExe);
+<a name="line286"></a>                $exe = $tmpExe;
+<a name="line287"></a>            }
+<a name="line288"></a>
+<a name="line289"></a>            $value = rtrim(shell_exec($exe));
+<a name="line290"></a>            $output->writeln('');
+<a name="line291"></a>
+<a name="line292"></a>            if (isset($tmpExe)) {
+<a name="line293"></a>                unlink($tmpExe);
+<a name="line294"></a>            }
+<a name="line295"></a>
+<a name="line296"></a>            return $value;
+<a name="line297"></a>        }
+<a name="line298"></a>
+<a name="line299"></a>        if ($this->hasSttyAvailable()) {
+<a name="line300"></a>            $sttyMode = shell_exec('stty -g');
+<a name="line301"></a>
+<a name="line302"></a>            shell_exec('stty -echo');
+<a name="line303"></a>            $value = fgets($inputStream, 4096);
+<a name="line304"></a>            shell_exec(sprintf('stty %s', $sttyMode));
+<a name="line305"></a>
+<a name="line306"></a>            if (false === $value) {
+<a name="line307"></a>                throw new \RuntimeException('Aborted');
+<a name="line308"></a>            }
+<a name="line309"></a>
+<a name="line310"></a>            $value = trim($value);
+<a name="line311"></a>            $output->writeln('');
+<a name="line312"></a>
+<a name="line313"></a>            return $value;
+<a name="line314"></a>        }
+<a name="line315"></a>
+<a name="line316"></a>        if (false !== $shell = $this->getShell()) {
+<a name="line317"></a>            $readCmd = 'csh' === $shell ? 'set mypassword = $<' : 'read -r mypassword';
+<a name="line318"></a>            $command = sprintf("/usr/bin/env %s -c 'stty -echo; %s; stty echo; echo \$mypassword'", $shell, $readCmd);
+<a name="line319"></a>            $value   = rtrim(shell_exec($command));
+<a name="line320"></a>            $output->writeln('');
+<a name="line321"></a>
+<a name="line322"></a>            return $value;
+<a name="line323"></a>        }
+<a name="line324"></a>
+<a name="line325"></a>        throw new \RuntimeException('Unable to hide the response.');
+<a name="line326"></a>    }
+<a name="line327"></a>
+<a name="line328"></a>    /**
+<a name="line329"></a>     * 验证重试次数
+<a name="line330"></a>     * @param callable       $interviewer
+<a name="line331"></a>     * @param Output         $output
+<a name="line332"></a>     * @param OutputQuestion $question
+<a name="line333"></a>     * @return string
+<a name="line334"></a>     * @throws null
+<a name="line335"></a>     */
+<a name="line336"></a>    private function validateAttempts($interviewer, Output $output, OutputQuestion $question)
+<a name="line337"></a>    {
+<a name="line338"></a>        $error    = null;
+<a name="line339"></a>        $attempts = $question->getMaxAttempts();
+<a name="line340"></a>        while (null === $attempts || $attempts--) {
+<a name="line341"></a>            if (null !== $error) {
+<a name="line342"></a>                $this->writeError($output, $error);
+<a name="line343"></a>            }
+<a name="line344"></a>
+<a name="line345"></a>            try {
+<a name="line346"></a>                return call_user_func($question->getValidator(), $interviewer());
+<a name="line347"></a>            } catch (\Exception $error) {
+<a name="line348"></a>            }
+<a name="line349"></a>        }
+<a name="line350"></a>
+<a name="line351"></a>        throw $error;
+<a name="line352"></a>    }
+<a name="line353"></a>
+<a name="line354"></a>    /**
+<a name="line355"></a>     * 获取一个有效的 unix 终端。
+<a name="line356"></a>     * @return string|bool
+<a name="line357"></a>     */
+<a name="line358"></a>    private function getShell()
+<a name="line359"></a>    {
+<a name="line360"></a>        if (null !== self::$shell) {
+<a name="line361"></a>            return self::$shell;
+<a name="line362"></a>        }
+<a name="line363"></a>
+<a name="line364"></a>        self::$shell = false;
+<a name="line365"></a>
+<a name="line366"></a>        if (file_exists('/usr/bin/env')) {
+<a name="line367"></a>            // handle other OSs with bash/zsh/ksh/csh if available to hide the answer
+<a name="line368"></a>            $test = "/usr/bin/env %s -c 'echo OK' 2> /dev/null";
+<a name="line369"></a>            foreach (['bash', 'zsh', 'ksh', 'csh'] as $sh) {
+<a name="line370"></a>                if ('OK' === rtrim(shell_exec(sprintf($test, $sh)))) {
+<a name="line371"></a>                    self::$shell = $sh;
+<a name="line372"></a>                    break;
+<a name="line373"></a>                }
+<a name="line374"></a>            }
+<a name="line375"></a>        }
+<a name="line376"></a>
+<a name="line377"></a>        return self::$shell;
+<a name="line378"></a>    }
+<a name="line379"></a>
+<a name="line380"></a>    /**
+<a name="line381"></a>     * 检查有用的stty
+<a name="line382"></a>     * @return bool
+<a name="line383"></a>     */
+<a name="line384"></a>    private function hasSttyAvailable()
+<a name="line385"></a>    {
+<a name="line386"></a>        if (null !== self::$stty) {
+<a name="line387"></a>            return self::$stty;
+<a name="line388"></a>        }
+<a name="line389"></a>
+<a name="line390"></a>        exec('stty 2>&1', $output, $exitcode);
+<a name="line391"></a>
+<a name="line392"></a>        return self::$stty = 0 === $exitcode;
+<a name="line393"></a>    }
+<a name="line394"></a>}
+<a name="line395"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\helper\question.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

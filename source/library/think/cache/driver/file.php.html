@@ -1,0 +1,247 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\cache\driver\File.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\cache\driver\file.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\cache\driver\File.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\cache\driver;
+<a name="line13"></a>
+<a name="line14"></a>use think\Cache;
+<a name="line15"></a>
+<a name="line16"></a>/**
+<a name="line17"></a> * 文件类型缓存类
+<a name="line18"></a> * @author    liu21st <liu21st@gmail.com>
+<a name="line19"></a> */
+<a name="line20"></a>class File
+<a name="line21"></a>{
+<a name="line22"></a>
+<a name="line23"></a>    protected $options = [
+<a name="line24"></a>        'expire'        => 0,
+<a name="line25"></a>        'cache_subdir'  => false,
+<a name="line26"></a>        'path_level'    => 1,
+<a name="line27"></a>        'prefix'        => '',
+<a name="line28"></a>        'path'          => CACHE_PATH,
+<a name="line29"></a>        'data_compress' => false,
+<a name="line30"></a>    ];
+<a name="line31"></a>
+<a name="line32"></a>    /**
+<a name="line33"></a>     * 架构函数
+<a name="line34"></a>     * @param array $options
+<a name="line35"></a>     */
+<a name="line36"></a>    public function __construct($options = [])
+<a name="line37"></a>    {
+<a name="line38"></a>        if (!empty($options)) {
+<a name="line39"></a>            $this->options = array_merge($this->options, $options);
+<a name="line40"></a>        }
+<a name="line41"></a>        if (substr($this->options['path'], -1) != '/') {
+<a name="line42"></a>            $this->options['path'] .= '/';
+<a name="line43"></a>        }
+<a name="line44"></a>        $this->init();
+<a name="line45"></a>    }
+<a name="line46"></a>
+<a name="line47"></a>    /**
+<a name="line48"></a>     * 初始化检查
+<a name="line49"></a>     * @access private
+<a name="line50"></a>     * @return boolean
+<a name="line51"></a>     */
+<a name="line52"></a>    private function init()
+<a name="line53"></a>    {
+<a name="line54"></a>        // 创建项目缓存目录
+<a name="line55"></a>        if (!is_dir($this->options['path'])) {
+<a name="line56"></a>            if (mkdir($this->options['path'], 0755, true)) {
+<a name="line57"></a>                return true;
+<a name="line58"></a>            }
+<a name="line59"></a>        }
+<a name="line60"></a>        return false;
+<a name="line61"></a>    }
+<a name="line62"></a>
+<a name="line63"></a>    /**
+<a name="line64"></a>     * 取得变量的存储文件名
+<a name="line65"></a>     * @access private
+<a name="line66"></a>     * @param string $name 缓存变量名
+<a name="line67"></a>     * @return string
+<a name="line68"></a>     */
+<a name="line69"></a>    private function filename($name)
+<a name="line70"></a>    {
+<a name="line71"></a>        $name = md5($name);
+<a name="line72"></a>        if ($this->options['cache_subdir']) {
+<a name="line73"></a>            // 使用子目录
+<a name="line74"></a>            $dir = '';
+<a name="line75"></a>            $len = $this->options['path_level'];
+<a name="line76"></a>            for ($i = 0; $i < $len; $i++) {
+<a name="line77"></a>                $dir .= $name{$i} . '/';
+<a name="line78"></a>            }
+<a name="line79"></a>            if (!is_dir($this->options['path'] . $dir)) {
+<a name="line80"></a>                mkdir($this->options['path'] . $dir, 0755, true);
+<a name="line81"></a>            }
+<a name="line82"></a>            $filename = $dir . $this->options['prefix'] . $name . '.php';
+<a name="line83"></a>        } else {
+<a name="line84"></a>            $filename = $this->options['prefix'] . $name . '.php';
+<a name="line85"></a>        }
+<a name="line86"></a>        return $this->options['path'] . $filename;
+<a name="line87"></a>    }
+<a name="line88"></a>
+<a name="line89"></a>    /**
+<a name="line90"></a>     * 读取缓存
+<a name="line91"></a>     * @access public
+<a name="line92"></a>     * @param string $name 缓存变量名
+<a name="line93"></a>     * @return mixed
+<a name="line94"></a>     */
+<a name="line95"></a>    public function get($name)
+<a name="line96"></a>    {
+<a name="line97"></a>        $filename = $this->filename($name);
+<a name="line98"></a>        if (!is_file($filename)) {
+<a name="line99"></a>            return false;
+<a name="line100"></a>        }
+<a name="line101"></a>        $content = file_get_contents($filename);
+<a name="line102"></a>        if (false !== $content) {
+<a name="line103"></a>            $expire = (int) substr($content, 8, 12);
+<a name="line104"></a>            if (0 != $expire && time() > filemtime($filename) + $expire) {
+<a name="line105"></a>                //缓存过期删除缓存文件
+<a name="line106"></a>                $this->unlink($filename);
+<a name="line107"></a>                return false;
+<a name="line108"></a>            }
+<a name="line109"></a>            $content = substr($content, 20, -3);
+<a name="line110"></a>            if ($this->options['data_compress'] && function_exists('gzcompress')) {
+<a name="line111"></a>                //启用数据压缩
+<a name="line112"></a>                $content = gzuncompress($content);
+<a name="line113"></a>            }
+<a name="line114"></a>            $content = unserialize($content);
+<a name="line115"></a>            return $content;
+<a name="line116"></a>        } else {
+<a name="line117"></a>            return false;
+<a name="line118"></a>        }
+<a name="line119"></a>    }
+<a name="line120"></a>
+<a name="line121"></a>    /**
+<a name="line122"></a>     * 写入缓存
+<a name="line123"></a>     * @access public
+<a name="line124"></a>     * @param string    $name 缓存变量名
+<a name="line125"></a>     * @param mixed     $value  存储数据
+<a name="line126"></a>     * @param int       $expire  有效时间 0为永久
+<a name="line127"></a>     * @return boolean
+<a name="line128"></a>     */
+<a name="line129"></a>    public function set($name, $value, $expire = null)
+<a name="line130"></a>    {
+<a name="line131"></a>        if (is_null($expire)) {
+<a name="line132"></a>            $expire = $this->options['expire'];
+<a name="line133"></a>        }
+<a name="line134"></a>        $filename = $this->filename($name);
+<a name="line135"></a>        $data     = serialize($value);
+<a name="line136"></a>        if ($this->options['data_compress'] && function_exists('gzcompress')) {
+<a name="line137"></a>            //数据压缩
+<a name="line138"></a>            $data = gzcompress($data, 3);
+<a name="line139"></a>        }
+<a name="line140"></a>        $data   = "<?php\n//" . sprintf('%012d', $expire) . $data . "\n?>";
+<a name="line141"></a>        $result = file_put_contents($filename, $data);
+<a name="line142"></a>        if ($result) {
+<a name="line143"></a>            clearstatcache();
+<a name="line144"></a>            return true;
+<a name="line145"></a>        } else {
+<a name="line146"></a>            return false;
+<a name="line147"></a>        }
+<a name="line148"></a>    }
+<a name="line149"></a>
+<a name="line150"></a>    /**
+<a name="line151"></a>     * 删除缓存
+<a name="line152"></a>     * @access public
+<a name="line153"></a>     * @param string $name 缓存变量名
+<a name="line154"></a>     * @return boolean
+<a name="line155"></a>     */
+<a name="line156"></a>    public function rm($name)
+<a name="line157"></a>    {
+<a name="line158"></a>        return $this->unlink($this->filename($name));
+<a name="line159"></a>    }
+<a name="line160"></a>
+<a name="line161"></a>    /**
+<a name="line162"></a>     * 清除缓存
+<a name="line163"></a>     * @access public
+<a name="line164"></a>     * @return boolean
+<a name="line165"></a>     */
+<a name="line166"></a>    public function clear()
+<a name="line167"></a>    {
+<a name="line168"></a>        $fileLsit = (array) glob($this->options['path'] . '*');
+<a name="line169"></a>        foreach ($fileLsit as $path) {
+<a name="line170"></a>            is_file($path) && unlink($path);
+<a name="line171"></a>        }
+<a name="line172"></a>        return true;
+<a name="line173"></a>    }
+<a name="line174"></a>
+<a name="line175"></a>    /**
+<a name="line176"></a>     * 判断文件是否存在后，删除
+<a name="line177"></a>     * @param $path
+<a name="line178"></a>     * @return bool
+<a name="line179"></a>     * @author byron sampson <xiaobo.sun@qq.com>
+<a name="line180"></a>     * @return boolean
+<a name="line181"></a>     */
+<a name="line182"></a>    private function unlink($path)
+<a name="line183"></a>    {
+<a name="line184"></a>        return is_file($path) && unlink($path);
+<a name="line185"></a>    }
+<a name="line186"></a>}
+<a name="line187"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\cache\driver\file.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

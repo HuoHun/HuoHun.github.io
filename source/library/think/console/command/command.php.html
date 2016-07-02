@@ -1,0 +1,561 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\console\command\Command.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\command\command.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\console\command\Command.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2015 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: yunwuxin <448901948@qq.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\console\command;
+<a name="line13"></a>
+<a name="line14"></a>use think\Console;
+<a name="line15"></a>use think\console\Input;
+<a name="line16"></a>use think\console\input\Argument;
+<a name="line17"></a>use think\console\input\Definition;
+<a name="line18"></a>use think\console\helper\Set as HelperSet;
+<a name="line19"></a>use think\console\input\Option;
+<a name="line20"></a>use think\console\Output;
+<a name="line21"></a>
+<a name="line22"></a>class Command
+<a name="line23"></a>{
+<a name="line24"></a>
+<a name="line25"></a>    /** @var  Console */
+<a name="line26"></a>    private $console;
+<a name="line27"></a>    private $name;
+<a name="line28"></a>    private $aliases                         = [];
+<a name="line29"></a>    private $definition;
+<a name="line30"></a>    private $help;
+<a name="line31"></a>    private $description;
+<a name="line32"></a>    private $ignoreValidationErrors          = false;
+<a name="line33"></a>    private $consoleDefinitionMerged         = false;
+<a name="line34"></a>    private $consoleDefinitionMergedWithArgs = false;
+<a name="line35"></a>    private $code;
+<a name="line36"></a>    private $synopsis                        = [];
+<a name="line37"></a>    private $usages                          = [];
+<a name="line38"></a>
+<a name="line39"></a>    /** @var  HelperSet */
+<a name="line40"></a>    private $helperSet;
+<a name="line41"></a>
+<a name="line42"></a>    /**
+<a name="line43"></a>     * 构造方法
+<a name="line44"></a>     * @param string|null $name 命令名称,如果没有设置则比如在 configure() 里设置
+<a name="line45"></a>     * @throws \LogicException
+<a name="line46"></a>     * @api
+<a name="line47"></a>     */
+<a name="line48"></a>    public function __construct($name = null)
+<a name="line49"></a>    {
+<a name="line50"></a>        $this->definition = new Definition();
+<a name="line51"></a>
+<a name="line52"></a>        if (null !== $name) {
+<a name="line53"></a>            $this->setName($name);
+<a name="line54"></a>        }
+<a name="line55"></a>
+<a name="line56"></a>        $this->configure();
+<a name="line57"></a>
+<a name="line58"></a>        if (!$this->name) {
+<a name="line59"></a>            throw new \LogicException(sprintf('The command defined in "%s" cannot have an empty name.', get_class($this)));
+<a name="line60"></a>        }
+<a name="line61"></a>    }
+<a name="line62"></a>
+<a name="line63"></a>    /**
+<a name="line64"></a>     * 忽略验证错误
+<a name="line65"></a>     */
+<a name="line66"></a>    public function ignoreValidationErrors()
+<a name="line67"></a>    {
+<a name="line68"></a>        $this->ignoreValidationErrors = true;
+<a name="line69"></a>    }
+<a name="line70"></a>
+<a name="line71"></a>    /**
+<a name="line72"></a>     * 设置控制台
+<a name="line73"></a>     * @param Console $console
+<a name="line74"></a>     */
+<a name="line75"></a>    public function setConsole(Console $console = null)
+<a name="line76"></a>    {
+<a name="line77"></a>        $this->console = $console;
+<a name="line78"></a>        if ($console) {
+<a name="line79"></a>            $this->setHelperSet($console->getHelperSet());
+<a name="line80"></a>        } else {
+<a name="line81"></a>            $this->helperSet = null;
+<a name="line82"></a>        }
+<a name="line83"></a>    }
+<a name="line84"></a>
+<a name="line85"></a>    /**
+<a name="line86"></a>     * 设置帮助集
+<a name="line87"></a>     * @param HelperSet $helperSet
+<a name="line88"></a>     */
+<a name="line89"></a>    public function setHelperSet(HelperSet $helperSet)
+<a name="line90"></a>    {
+<a name="line91"></a>        $this->helperSet = $helperSet;
+<a name="line92"></a>    }
+<a name="line93"></a>
+<a name="line94"></a>    /**
+<a name="line95"></a>     * 获取帮助集
+<a name="line96"></a>     * @return HelperSet
+<a name="line97"></a>     */
+<a name="line98"></a>    public function getHelperSet()
+<a name="line99"></a>    {
+<a name="line100"></a>        return $this->helperSet;
+<a name="line101"></a>    }
+<a name="line102"></a>
+<a name="line103"></a>    /**
+<a name="line104"></a>     * 获取控制台
+<a name="line105"></a>     * @return Console
+<a name="line106"></a>     * @api
+<a name="line107"></a>     */
+<a name="line108"></a>    public function getConsole()
+<a name="line109"></a>    {
+<a name="line110"></a>        return $this->console;
+<a name="line111"></a>    }
+<a name="line112"></a>
+<a name="line113"></a>    /**
+<a name="line114"></a>     * 是否有效
+<a name="line115"></a>     * @return bool
+<a name="line116"></a>     */
+<a name="line117"></a>    public function isEnabled()
+<a name="line118"></a>    {
+<a name="line119"></a>        return true;
+<a name="line120"></a>    }
+<a name="line121"></a>
+<a name="line122"></a>    /**
+<a name="line123"></a>     * 配置指令
+<a name="line124"></a>     */
+<a name="line125"></a>    protected function configure()
+<a name="line126"></a>    {
+<a name="line127"></a>    }
+<a name="line128"></a>
+<a name="line129"></a>    /**
+<a name="line130"></a>     * 执行指令
+<a name="line131"></a>     * @param Input  $input
+<a name="line132"></a>     * @param Output $output
+<a name="line133"></a>     * @return null|int
+<a name="line134"></a>     * @throws \LogicException
+<a name="line135"></a>     * @see setCode()
+<a name="line136"></a>     */
+<a name="line137"></a>    protected function execute(Input $input, Output $output)
+<a name="line138"></a>    {
+<a name="line139"></a>        throw new \LogicException('You must override the execute() method in the concrete command class.');
+<a name="line140"></a>    }
+<a name="line141"></a>
+<a name="line142"></a>    /**
+<a name="line143"></a>     * 用户验证
+<a name="line144"></a>     * @param Input  $input
+<a name="line145"></a>     * @param Output $output
+<a name="line146"></a>     */
+<a name="line147"></a>    protected function interact(Input $input, Output $output)
+<a name="line148"></a>    {
+<a name="line149"></a>    }
+<a name="line150"></a>
+<a name="line151"></a>    /**
+<a name="line152"></a>     * 初始化
+<a name="line153"></a>     * @param Input  $input  An InputInterface instance
+<a name="line154"></a>     * @param Output $output An OutputInterface instance
+<a name="line155"></a>     */
+<a name="line156"></a>    protected function initialize(Input $input, Output $output)
+<a name="line157"></a>    {
+<a name="line158"></a>    }
+<a name="line159"></a>
+<a name="line160"></a>    /**
+<a name="line161"></a>     * 执行
+<a name="line162"></a>     * @param Input  $input
+<a name="line163"></a>     * @param Output $output
+<a name="line164"></a>     * @return int
+<a name="line165"></a>     * @throws \Exception
+<a name="line166"></a>     * @see setCode()
+<a name="line167"></a>     * @see execute()
+<a name="line168"></a>     */
+<a name="line169"></a>    public function run(Input $input, Output $output)
+<a name="line170"></a>    {
+<a name="line171"></a>        $this->getSynopsis(true);
+<a name="line172"></a>        $this->getSynopsis(false);
+<a name="line173"></a>
+<a name="line174"></a>        $this->mergeConsoleDefinition();
+<a name="line175"></a>
+<a name="line176"></a>        try {
+<a name="line177"></a>            $input->bind($this->definition);
+<a name="line178"></a>        } catch (\Exception $e) {
+<a name="line179"></a>            if (!$this->ignoreValidationErrors) {
+<a name="line180"></a>                throw $e;
+<a name="line181"></a>            }
+<a name="line182"></a>        }
+<a name="line183"></a>
+<a name="line184"></a>        $this->initialize($input, $output);
+<a name="line185"></a>
+<a name="line186"></a>        if ($input->isInteractive()) {
+<a name="line187"></a>            $this->interact($input, $output);
+<a name="line188"></a>        }
+<a name="line189"></a>
+<a name="line190"></a>        $input->validate();
+<a name="line191"></a>
+<a name="line192"></a>        if ($this->code) {
+<a name="line193"></a>            $statusCode = call_user_func($this->code, $input, $output);
+<a name="line194"></a>        } else {
+<a name="line195"></a>            $statusCode = $this->execute($input, $output);
+<a name="line196"></a>        }
+<a name="line197"></a>
+<a name="line198"></a>        return is_numeric($statusCode) ? (int)$statusCode : 0;
+<a name="line199"></a>    }
+<a name="line200"></a>
+<a name="line201"></a>    /**
+<a name="line202"></a>     * 设置执行代码
+<a name="line203"></a>     * @param callable $code callable(InputInterface $input, OutputInterface $output)
+<a name="line204"></a>     * @return Command
+<a name="line205"></a>     * @throws \InvalidArgumentException
+<a name="line206"></a>     * @see execute()
+<a name="line207"></a>     */
+<a name="line208"></a>    public function setCode(callable $code)
+<a name="line209"></a>    {
+<a name="line210"></a>        if (!is_callable($code)) {
+<a name="line211"></a>            throw new \InvalidArgumentException('Invalid callable provided to Command::setCode.');
+<a name="line212"></a>        }
+<a name="line213"></a>
+<a name="line214"></a>        if (PHP_VERSION_ID >= 50400 && $code instanceof \Closure) {
+<a name="line215"></a>            $r = new \ReflectionFunction($code);
+<a name="line216"></a>            if (null === $r->getClosureThis()) {
+<a name="line217"></a>                $code = \Closure::bind($code, $this);
+<a name="line218"></a>            }
+<a name="line219"></a>        }
+<a name="line220"></a>
+<a name="line221"></a>        $this->code = $code;
+<a name="line222"></a>
+<a name="line223"></a>        return $this;
+<a name="line224"></a>    }
+<a name="line225"></a>
+<a name="line226"></a>    /**
+<a name="line227"></a>     * 合并参数定义
+<a name="line228"></a>     * @param bool $mergeArgs
+<a name="line229"></a>     */
+<a name="line230"></a>    public function mergeConsoleDefinition($mergeArgs = true)
+<a name="line231"></a>    {
+<a name="line232"></a>        if (null === $this->console
+<a name="line233"></a>            || (true === $this->consoleDefinitionMerged
+<a name="line234"></a>                && ($this->consoleDefinitionMergedWithArgs || !$mergeArgs))
+<a name="line235"></a>        ) {
+<a name="line236"></a>            return;
+<a name="line237"></a>        }
+<a name="line238"></a>
+<a name="line239"></a>        if ($mergeArgs) {
+<a name="line240"></a>            $currentArguments = $this->definition->getArguments();
+<a name="line241"></a>            $this->definition->setArguments($this->console->getDefinition()->getArguments());
+<a name="line242"></a>            $this->definition->addArguments($currentArguments);
+<a name="line243"></a>        }
+<a name="line244"></a>
+<a name="line245"></a>        $this->definition->addOptions($this->console->getDefinition()->getOptions());
+<a name="line246"></a>
+<a name="line247"></a>        $this->consoleDefinitionMerged = true;
+<a name="line248"></a>        if ($mergeArgs) {
+<a name="line249"></a>            $this->consoleDefinitionMergedWithArgs = true;
+<a name="line250"></a>        }
+<a name="line251"></a>    }
+<a name="line252"></a>
+<a name="line253"></a>    /**
+<a name="line254"></a>     * 设置参数定义
+<a name="line255"></a>     * @param array|Definition $definition
+<a name="line256"></a>     * @return Command
+<a name="line257"></a>     * @api
+<a name="line258"></a>     */
+<a name="line259"></a>    public function setDefinition($definition)
+<a name="line260"></a>    {
+<a name="line261"></a>        if ($definition instanceof Definition) {
+<a name="line262"></a>            $this->definition = $definition;
+<a name="line263"></a>        } else {
+<a name="line264"></a>            $this->definition->setDefinition($definition);
+<a name="line265"></a>        }
+<a name="line266"></a>
+<a name="line267"></a>        $this->consoleDefinitionMerged = false;
+<a name="line268"></a>
+<a name="line269"></a>        return $this;
+<a name="line270"></a>    }
+<a name="line271"></a>
+<a name="line272"></a>    /**
+<a name="line273"></a>     * 获取参数定义
+<a name="line274"></a>     * @return Definition
+<a name="line275"></a>     * @api
+<a name="line276"></a>     */
+<a name="line277"></a>    public function getDefinition()
+<a name="line278"></a>    {
+<a name="line279"></a>        return $this->definition;
+<a name="line280"></a>    }
+<a name="line281"></a>
+<a name="line282"></a>    /**
+<a name="line283"></a>     * 获取当前指令的参数定义
+<a name="line284"></a>     * @return Definition
+<a name="line285"></a>     */
+<a name="line286"></a>    public function getNativeDefinition()
+<a name="line287"></a>    {
+<a name="line288"></a>        return $this->getDefinition();
+<a name="line289"></a>    }
+<a name="line290"></a>
+<a name="line291"></a>    /**
+<a name="line292"></a>     * 添加参数
+<a name="line293"></a>     * @param string $name        名称
+<a name="line294"></a>     * @param int    $mode        类型
+<a name="line295"></a>     * @param string $description 描述
+<a name="line296"></a>     * @param mixed  $default     默认值
+<a name="line297"></a>     * @return Command
+<a name="line298"></a>     */
+<a name="line299"></a>    public function addArgument($name, $mode = null, $description = '', $default = null)
+<a name="line300"></a>    {
+<a name="line301"></a>        $this->definition->addArgument(new Argument($name, $mode, $description, $default));
+<a name="line302"></a>
+<a name="line303"></a>        return $this;
+<a name="line304"></a>    }
+<a name="line305"></a>
+<a name="line306"></a>    /**
+<a name="line307"></a>     * 添加选项
+<a name="line308"></a>     * @param string $name        选项名称
+<a name="line309"></a>     * @param string $shortcut    别名
+<a name="line310"></a>     * @param int    $mode        类型
+<a name="line311"></a>     * @param string $description 描述
+<a name="line312"></a>     * @param mixed  $default     默认值
+<a name="line313"></a>     * @return Command
+<a name="line314"></a>     */
+<a name="line315"></a>    public function addOption($name, $shortcut = null, $mode = null, $description = '', $default = null)
+<a name="line316"></a>    {
+<a name="line317"></a>        $this->definition->addOption(new Option($name, $shortcut, $mode, $description, $default));
+<a name="line318"></a>
+<a name="line319"></a>        return $this;
+<a name="line320"></a>    }
+<a name="line321"></a>
+<a name="line322"></a>    /**
+<a name="line323"></a>     * 设置指令名称
+<a name="line324"></a>     * @param string $name
+<a name="line325"></a>     * @return Command
+<a name="line326"></a>     * @throws \InvalidArgumentException
+<a name="line327"></a>     */
+<a name="line328"></a>    public function setName($name)
+<a name="line329"></a>    {
+<a name="line330"></a>        $this->validateName($name);
+<a name="line331"></a>
+<a name="line332"></a>        $this->name = $name;
+<a name="line333"></a>
+<a name="line334"></a>        return $this;
+<a name="line335"></a>    }
+<a name="line336"></a>
+<a name="line337"></a>    /**
+<a name="line338"></a>     * 获取指令名称
+<a name="line339"></a>     * @return string
+<a name="line340"></a>     */
+<a name="line341"></a>    public function getName()
+<a name="line342"></a>    {
+<a name="line343"></a>        return $this->name;
+<a name="line344"></a>    }
+<a name="line345"></a>
+<a name="line346"></a>    /**
+<a name="line347"></a>     * 设置描述
+<a name="line348"></a>     * @param string $description
+<a name="line349"></a>     * @return Command
+<a name="line350"></a>     */
+<a name="line351"></a>    public function setDescription($description)
+<a name="line352"></a>    {
+<a name="line353"></a>        $this->description = $description;
+<a name="line354"></a>
+<a name="line355"></a>        return $this;
+<a name="line356"></a>    }
+<a name="line357"></a>
+<a name="line358"></a>    /**
+<a name="line359"></a>     *  获取描述
+<a name="line360"></a>     * @return string
+<a name="line361"></a>     */
+<a name="line362"></a>    public function getDescription()
+<a name="line363"></a>    {
+<a name="line364"></a>        return $this->description;
+<a name="line365"></a>    }
+<a name="line366"></a>
+<a name="line367"></a>    /**
+<a name="line368"></a>     * 设置帮助信息
+<a name="line369"></a>     * @param string $help
+<a name="line370"></a>     * @return Command
+<a name="line371"></a>     */
+<a name="line372"></a>    public function setHelp($help)
+<a name="line373"></a>    {
+<a name="line374"></a>        $this->help = $help;
+<a name="line375"></a>
+<a name="line376"></a>        return $this;
+<a name="line377"></a>    }
+<a name="line378"></a>
+<a name="line379"></a>    /**
+<a name="line380"></a>     * 获取帮助信息
+<a name="line381"></a>     * @return string
+<a name="line382"></a>     */
+<a name="line383"></a>    public function getHelp()
+<a name="line384"></a>    {
+<a name="line385"></a>        return $this->help;
+<a name="line386"></a>    }
+<a name="line387"></a>
+<a name="line388"></a>
+<a name="line389"></a>    /**
+<a name="line390"></a>     * 描述信息
+<a name="line391"></a>     * @return string
+<a name="line392"></a>     */
+<a name="line393"></a>    public function getProcessedHelp()
+<a name="line394"></a>    {
+<a name="line395"></a>        $name = $this->name;
+<a name="line396"></a>
+<a name="line397"></a>        $placeholders = [
+<a name="line398"></a>            '%command.name%',
+<a name="line399"></a>            '%command.full_name%',
+<a name="line400"></a>        ];
+<a name="line401"></a>        $replacements = [
+<a name="line402"></a>            $name,
+<a name="line403"></a>            $_SERVER['PHP_SELF'] . ' ' . $name,
+<a name="line404"></a>        ];
+<a name="line405"></a>
+<a name="line406"></a>        return str_replace($placeholders, $replacements, $this->getHelp());
+<a name="line407"></a>    }
+<a name="line408"></a>
+<a name="line409"></a>    /**
+<a name="line410"></a>     * 设置别名
+<a name="line411"></a>     * @param string[] $aliases
+<a name="line412"></a>     * @return Command
+<a name="line413"></a>     * @throws \InvalidArgumentException
+<a name="line414"></a>     */
+<a name="line415"></a>    public function setAliases($aliases)
+<a name="line416"></a>    {
+<a name="line417"></a>        if (!is_array($aliases) && !$aliases instanceof \Traversable) {
+<a name="line418"></a>            throw new \InvalidArgumentException('$aliases must be an array or an instance of \Traversable');
+<a name="line419"></a>        }
+<a name="line420"></a>
+<a name="line421"></a>        foreach ($aliases as $alias) {
+<a name="line422"></a>            $this->validateName($alias);
+<a name="line423"></a>        }
+<a name="line424"></a>
+<a name="line425"></a>        $this->aliases = $aliases;
+<a name="line426"></a>
+<a name="line427"></a>        return $this;
+<a name="line428"></a>    }
+<a name="line429"></a>
+<a name="line430"></a>    /**
+<a name="line431"></a>     * 获取别名
+<a name="line432"></a>     * @return array
+<a name="line433"></a>     */
+<a name="line434"></a>    public function getAliases()
+<a name="line435"></a>    {
+<a name="line436"></a>        return $this->aliases;
+<a name="line437"></a>    }
+<a name="line438"></a>
+<a name="line439"></a>    /**
+<a name="line440"></a>     * 获取简介
+<a name="line441"></a>     * @param bool $short 是否简单的
+<a name="line442"></a>     * @return string
+<a name="line443"></a>     */
+<a name="line444"></a>    public function getSynopsis($short = false)
+<a name="line445"></a>    {
+<a name="line446"></a>        $key = $short ? 'short' : 'long';
+<a name="line447"></a>
+<a name="line448"></a>        if (!isset($this->synopsis[$key])) {
+<a name="line449"></a>            $this->synopsis[$key] = trim(sprintf('%s %s', $this->name, $this->definition->getSynopsis($short)));
+<a name="line450"></a>        }
+<a name="line451"></a>
+<a name="line452"></a>        return $this->synopsis[$key];
+<a name="line453"></a>    }
+<a name="line454"></a>
+<a name="line455"></a>    /**
+<a name="line456"></a>     * 添加用法介绍
+<a name="line457"></a>     * @param string $usage
+<a name="line458"></a>     */
+<a name="line459"></a>    public function addUsage($usage)
+<a name="line460"></a>    {
+<a name="line461"></a>        if (0 !== strpos($usage, $this->name)) {
+<a name="line462"></a>            $usage = sprintf('%s %s', $this->name, $usage);
+<a name="line463"></a>        }
+<a name="line464"></a>
+<a name="line465"></a>        $this->usages[] = $usage;
+<a name="line466"></a>
+<a name="line467"></a>        return $this;
+<a name="line468"></a>    }
+<a name="line469"></a>
+<a name="line470"></a>    /**
+<a name="line471"></a>     * 获取用法介绍
+<a name="line472"></a>     * @return array
+<a name="line473"></a>     */
+<a name="line474"></a>    public function getUsages()
+<a name="line475"></a>    {
+<a name="line476"></a>        return $this->usages;
+<a name="line477"></a>    }
+<a name="line478"></a>
+<a name="line479"></a>    /**
+<a name="line480"></a>     * 获取助手
+<a name="line481"></a>     * @param string $name
+<a name="line482"></a>     * @return mixed
+<a name="line483"></a>     * @throws \InvalidArgumentException
+<a name="line484"></a>     */
+<a name="line485"></a>    public function getHelper($name)
+<a name="line486"></a>    {
+<a name="line487"></a>        return $this->helperSet->get($name);
+<a name="line488"></a>    }
+<a name="line489"></a>
+<a name="line490"></a>    /**
+<a name="line491"></a>     * 验证指令名称
+<a name="line492"></a>     * @param string $name
+<a name="line493"></a>     * @throws \InvalidArgumentException
+<a name="line494"></a>     */
+<a name="line495"></a>    private function validateName($name)
+<a name="line496"></a>    {
+<a name="line497"></a>        if (!preg_match('/^[^\:]++(\:[^\:]++)*$/', $name)) {
+<a name="line498"></a>            throw new \InvalidArgumentException(sprintf('Command name "%s" is invalid.', $name));
+<a name="line499"></a>        }
+<a name="line500"></a>    }
+<a name="line501"></a>}</pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\console\command\command.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

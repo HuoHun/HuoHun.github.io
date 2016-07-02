@@ -1,0 +1,241 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\Log.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\log.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\Log.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: liu21st <liu21st@gmail.com>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think;
+<a name="line13"></a>use think\exception\ClassNotFoundException;
+<a name="line14"></a>
+<a name="line15"></a>/**
+<a name="line16"></a> * Class Log
+<a name="line17"></a> * @package think
+<a name="line18"></a> *          
+<a name="line19"></a> * @method void log($msg) static
+<a name="line20"></a> * @method void error($msg) static
+<a name="line21"></a> * @method void info($msg) static
+<a name="line22"></a> * @method void sql($msg) static
+<a name="line23"></a> * @method void notice($msg) static
+<a name="line24"></a> * @method void alert($msg) static
+<a name="line25"></a> */
+<a name="line26"></a>class Log
+<a name="line27"></a>{
+<a name="line28"></a>    const LOG    = 'log';
+<a name="line29"></a>    const ERROR  = 'error';
+<a name="line30"></a>    const INFO   = 'info';
+<a name="line31"></a>    const SQL    = 'sql';
+<a name="line32"></a>    const NOTICE = 'notice';
+<a name="line33"></a>    const ALERT  = 'alert';
+<a name="line34"></a>
+<a name="line35"></a>    // 日志信息
+<a name="line36"></a>    protected static $log = [];
+<a name="line37"></a>    // 配置参数
+<a name="line38"></a>    protected static $config = [];
+<a name="line39"></a>    // 日志类型
+<a name="line40"></a>    protected static $type = ['log', 'error', 'info', 'sql', 'notice', 'alert'];
+<a name="line41"></a>    // 日志写入驱动
+<a name="line42"></a>    protected static $driver;
+<a name="line43"></a>
+<a name="line44"></a>    // 当前日志授权key
+<a name="line45"></a>    protected static $key;
+<a name="line46"></a>
+<a name="line47"></a>    /**
+<a name="line48"></a>     * 日志初始化
+<a name="line49"></a>     * @param array $config
+<a name="line50"></a>     */
+<a name="line51"></a>    public static function init($config  = [])
+<a name="line52"></a>    {
+<a name="line53"></a>        $type         = isset($config['type']) ? $config['type'] : 'File';
+<a name="line54"></a>        $class        = false !== strpos($type, '\\') ? $type : '\\think\\log\\driver\\' . ucwords($type);
+<a name="line55"></a>        self::$config = $config;
+<a name="line56"></a>        unset($config['type']);
+<a name="line57"></a>        if(class_exists($class)) {
+<a name="line58"></a>            self::$driver = new $class($config);
+<a name="line59"></a>        } else {
+<a name="line60"></a>            throw new ClassNotFoundException('class not exists:' . $class, $class);
+<a name="line61"></a>        }
+<a name="line62"></a>        // 记录初始化信息
+<a name="line63"></a>        App::$debug && Log::record('[ LOG ] INIT ' . $type . ': ' . var_export($config, true), 'info');
+<a name="line64"></a>    }
+<a name="line65"></a>    
+<a name="line66"></a>    /**
+<a name="line67"></a>     * 获取日志信息
+<a name="line68"></a>     * @param string $type 信息类型
+<a name="line69"></a>     * @return array
+<a name="line70"></a>     */
+<a name="line71"></a>    public static function getLog($type = '')
+<a name="line72"></a>    {
+<a name="line73"></a>        return $type ? self::$log[$type] : self::$log;
+<a name="line74"></a>    }
+<a name="line75"></a>
+<a name="line76"></a>    /**
+<a name="line77"></a>     * 记录调试信息
+<a name="line78"></a>     * @param mixed  $msg  调试信息
+<a name="line79"></a>     * @param string $type 信息类型
+<a name="line80"></a>     * @return void
+<a name="line81"></a>     */
+<a name="line82"></a>    public static function record($msg, $type = 'log')
+<a name="line83"></a>    {
+<a name="line84"></a>        self::$log[$type][] = $msg;
+<a name="line85"></a>    }
+<a name="line86"></a>
+<a name="line87"></a>    /**
+<a name="line88"></a>     * 清空日志信息
+<a name="line89"></a>     * @return void
+<a name="line90"></a>     */
+<a name="line91"></a>    public static function clear()
+<a name="line92"></a>    {
+<a name="line93"></a>        self::$log = [];
+<a name="line94"></a>    }
+<a name="line95"></a>
+<a name="line96"></a>    /**
+<a name="line97"></a>     * 当前日志记录的授权key
+<a name="line98"></a>     * @param string  $key  授权key
+<a name="line99"></a>     * @return void
+<a name="line100"></a>     */
+<a name="line101"></a>    public static function key($key)
+<a name="line102"></a>    {
+<a name="line103"></a>        self::$key = $key;
+<a name="line104"></a>    }
+<a name="line105"></a>
+<a name="line106"></a>    /**
+<a name="line107"></a>     * 检查日志写入权限
+<a name="line108"></a>     * @param array  $config  当前日志配置参数
+<a name="line109"></a>     * @return bool
+<a name="line110"></a>     */
+<a name="line111"></a>    public static function check($config)
+<a name="line112"></a>    {
+<a name="line113"></a>
+<a name="line114"></a>        if (self::$key && !empty($config['allow_key']) && !in_array(self::$key, $config['allow_key'])) {
+<a name="line115"></a>            return false;
+<a name="line116"></a>        }
+<a name="line117"></a>        return true;
+<a name="line118"></a>    }
+<a name="line119"></a>
+<a name="line120"></a>    /**
+<a name="line121"></a>     * 保存调试信息
+<a name="line122"></a>     * @return bool
+<a name="line123"></a>     */
+<a name="line124"></a>    public static function save()
+<a name="line125"></a>    {
+<a name="line126"></a>        if (!empty(self::$log)) {
+<a name="line127"></a>            if (is_null(self::$driver)) {
+<a name="line128"></a>                self::init(Config::get('log'));
+<a name="line129"></a>            }
+<a name="line130"></a>
+<a name="line131"></a>            if (!self::check(self::$config)) {
+<a name="line132"></a>                // 检测日志写入权限
+<a name="line133"></a>                return false;
+<a name="line134"></a>            }
+<a name="line135"></a>            $result = self::$driver->save(self::$log);
+<a name="line136"></a>
+<a name="line137"></a>            if ($result) {
+<a name="line138"></a>                self::$log = [];
+<a name="line139"></a>            }
+<a name="line140"></a>
+<a name="line141"></a>            return $result;
+<a name="line142"></a>        }
+<a name="line143"></a>        return true;
+<a name="line144"></a>    }
+<a name="line145"></a>
+<a name="line146"></a>    /**
+<a name="line147"></a>     * 实时写入日志信息 并支持行为
+<a name="line148"></a>     * @param mixed  $msg  调试信息
+<a name="line149"></a>     * @param string $type 信息类型
+<a name="line150"></a>     * @return bool
+<a name="line151"></a>     */
+<a name="line152"></a>    public static function write($msg, $type = 'log')
+<a name="line153"></a>    {
+<a name="line154"></a>        // 封装日志信息
+<a name="line155"></a>        $log[$type][] = $msg;
+<a name="line156"></a>
+<a name="line157"></a>        // 监听log_write
+<a name="line158"></a>        Hook::listen('log_write', $log);
+<a name="line159"></a>        if (is_null(self::$driver)) {
+<a name="line160"></a>            self::init(Config::get('log'));
+<a name="line161"></a>        }
+<a name="line162"></a>        // 写入日志
+<a name="line163"></a>        return self::$driver->save($log);
+<a name="line164"></a>    }
+<a name="line165"></a>
+<a name="line166"></a>    /**
+<a name="line167"></a>     * 静态调用
+<a name="line168"></a>     * @param $method
+<a name="line169"></a>     * @param $args
+<a name="line170"></a>     * @return mixed
+<a name="line171"></a>     */
+<a name="line172"></a>    public static function __callStatic($method, $args)
+<a name="line173"></a>    {
+<a name="line174"></a>        if (in_array($method, self::$type)) {
+<a name="line175"></a>            array_push($args, $method);
+<a name="line176"></a>            return call_user_func_array('\\think\\Log::record', $args);
+<a name="line177"></a>        }
+<a name="line178"></a>    }
+<a name="line179"></a>
+<a name="line180"></a>}
+<a name="line181"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\log.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>

@@ -1,0 +1,311 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="generator" content="PHPDoctor 2.0.5 (http://peej.github.com/phpdoctor/)">
+<meta name="when" content="Sat, 02 Jul 2016 01:30:06 +0000">
+
+<link rel="stylesheet" type="text/css" href="../stylesheet.css">
+<link rel="start" href="../overview-summary.html">
+
+<title>library\think\debug\Socket.php (ThinkPHP)</title>
+
+</head>
+<body id="file" onload="parent.document.title=document.title;">
+
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\debug\socket.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<h1>library\think\debug\Socket.php</h1>
+<hr>
+
+<a name="line1"></a><pre><?php
+<a name="line2"></a>// +----------------------------------------------------------------------
+<a name="line3"></a>// | ThinkPHP [ WE CAN DO IT JUST THINK IT ]
+<a name="line4"></a>// +----------------------------------------------------------------------
+<a name="line5"></a>// | Copyright (c) 2006-2016 http://thinkphp.cn All rights reserved.
+<a name="line6"></a>// +----------------------------------------------------------------------
+<a name="line7"></a>// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
+<a name="line8"></a>// +----------------------------------------------------------------------
+<a name="line9"></a>// | Author: luofei614 <weibo.com/luofei614>
+<a name="line10"></a>// +----------------------------------------------------------------------
+<a name="line11"></a>
+<a name="line12"></a>namespace think\debug;
+<a name="line13"></a>
+<a name="line14"></a>/**
+<a name="line15"></a> * github: https://github.com/luofei614/SocketLog
+<a name="line16"></a> * @author luofei614<weibo.com/luofei614>
+<a name="line17"></a> */
+<a name="line18"></a>class Socket
+<a name="line19"></a>{
+<a name="line20"></a>    public $port = 1116; //SocketLog 服务的http的端口号
+<a name="line21"></a>
+<a name="line22"></a>    protected $config = [
+<a name="line23"></a>        'enable'              => true, //是否记录日志的开关
+<a name="line24"></a>        'host'                => 'localhost',
+<a name="line25"></a>        //是否显示利于优化的参数，如果允许时间，消耗内存等
+<a name="line26"></a>        'optimize'            => false,
+<a name="line27"></a>        'show_included_files' => false,
+<a name="line28"></a>        'error_handler'       => false,
+<a name="line29"></a>        //日志强制记录到配置的client_id
+<a name="line30"></a>        'force_client_ids'    => [],
+<a name="line31"></a>        //限制允许读取日志的client_id
+<a name="line32"></a>        'allow_client_ids'    => [],
+<a name="line33"></a>    ];
+<a name="line34"></a>
+<a name="line35"></a>    protected $css = [
+<a name="line36"></a>        'sql'           => 'color:#009bb4;',
+<a name="line37"></a>        'sql_warn'      => 'color:#009bb4;font-size:14px;',
+<a name="line38"></a>        'error_handler' => 'color:#f4006b;font-size:14px;',
+<a name="line39"></a>        'page'          => 'color:#40e2ff;background:#171717;',
+<a name="line40"></a>        'big'           => 'font-size:20px;color:red;',
+<a name="line41"></a>    ];
+<a name="line42"></a>
+<a name="line43"></a>    protected $allowForceClientIds = []; //配置强制推送且被授权的client_id
+<a name="line44"></a>
+<a name="line45"></a>    /**
+<a name="line46"></a>     * 架构函数
+<a name="line47"></a>     * @param array $config 缓存参数
+<a name="line48"></a>     * @access public
+<a name="line49"></a>     */
+<a name="line50"></a>    public function __construct(array $config = [])
+<a name="line51"></a>    {
+<a name="line52"></a>        if (!empty($config)) {
+<a name="line53"></a>            $this->config = array_merge($this->config, $config);
+<a name="line54"></a>        }
+<a name="line55"></a>    }
+<a name="line56"></a>
+<a name="line57"></a>    /**
+<a name="line58"></a>     * 调试输出接口
+<a name="line59"></a>     * @access public
+<a name="line60"></a>     * @param array $logs 日志信息
+<a name="line61"></a>     * @return bool
+<a name="line62"></a>     */
+<a name="line63"></a>    public function output(array $logs = [])
+<a name="line64"></a>    {
+<a name="line65"></a>        if (!$this->check()) {
+<a name="line66"></a>            return false;
+<a name="line67"></a>        }
+<a name="line68"></a>        $runtime    = number_format(microtime(true), 8, '.', '') - THINK_START_TIME;
+<a name="line69"></a>        $reqs       = number_format(1 / number_format($runtime, 8), 2);
+<a name="line70"></a>        $time_str   = " [运行时间：{$runtime}s][吞吐率：{$reqs}req/s]";
+<a name="line71"></a>        $memory_use = number_format((memory_get_usage() - THINK_START_MEM) / 1024, 2);
+<a name="line72"></a>        $memory_str = " [内存消耗：{$memory_use}kb]";
+<a name="line73"></a>        $file_load  = " [文件加载：" . count(get_included_files()) . "]";
+<a name="line74"></a>
+<a name="line75"></a>        if (isset($_SERVER['HTTP_HOST'])) {
+<a name="line76"></a>            $current_uri = $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+<a name="line77"></a>        } else {
+<a name="line78"></a>            $current_uri = "cmd:" . implode(' ', $_SERVER['argv']);
+<a name="line79"></a>        }
+<a name="line80"></a>        // 基本信息
+<a name="line81"></a>        $trace[] = [
+<a name="line82"></a>            'type' => 'group',
+<a name="line83"></a>            'msg'  => $current_uri . $time_str . $memory_str . $file_load,
+<a name="line84"></a>            'css'  => $this->css['page'],
+<a name="line85"></a>        ];
+<a name="line86"></a>
+<a name="line87"></a>        foreach ($logs as $type => $val) {
+<a name="line88"></a>            $trace[] = [
+<a name="line89"></a>                'type' => 'groupCollapsed',
+<a name="line90"></a>                'msg'  => '[ ' . $type . ' ]',
+<a name="line91"></a>                'css'  => isset($this->css[$type]) ? $this->css[$type] : '',
+<a name="line92"></a>            ];
+<a name="line93"></a>            foreach ($val as $msg) {
+<a name="line94"></a>                if (!is_string($msg)) {
+<a name="line95"></a>                    $msg = var_export($msg, true);
+<a name="line96"></a>                }
+<a name="line97"></a>                $trace[] = [
+<a name="line98"></a>                    'type' => 'log',
+<a name="line99"></a>                    'msg'  => $msg,
+<a name="line100"></a>                    'css'  => '',
+<a name="line101"></a>                ];
+<a name="line102"></a>            }
+<a name="line103"></a>            $trace[] = [
+<a name="line104"></a>                'type' => 'groupEnd',
+<a name="line105"></a>                'msg'  => '',
+<a name="line106"></a>                'css'  => '',
+<a name="line107"></a>            ];
+<a name="line108"></a>        }
+<a name="line109"></a>
+<a name="line110"></a>        if ($this->config['show_included_files']) {
+<a name="line111"></a>            $trace[] = [
+<a name="line112"></a>                'type' => 'groupCollapsed',
+<a name="line113"></a>                'msg'  => 'included_files',
+<a name="line114"></a>                'css'  => '',
+<a name="line115"></a>            ];
+<a name="line116"></a>            $trace[] = [
+<a name="line117"></a>                'type' => 'log',
+<a name="line118"></a>                'msg'  => implode("\n", get_included_files()),
+<a name="line119"></a>                'css'  => '',
+<a name="line120"></a>            ];
+<a name="line121"></a>            $trace[] = [
+<a name="line122"></a>                'type' => 'groupEnd',
+<a name="line123"></a>                'msg'  => '',
+<a name="line124"></a>                'css'  => '',
+<a name="line125"></a>            ];
+<a name="line126"></a>        }
+<a name="line127"></a>
+<a name="line128"></a>        $trace[] = [
+<a name="line129"></a>            'type' => 'groupEnd',
+<a name="line130"></a>            'msg'  => '',
+<a name="line131"></a>            'css'  => '',
+<a name="line132"></a>        ];
+<a name="line133"></a>
+<a name="line134"></a>        $tabid = $this->getClientArg('tabid');
+<a name="line135"></a>        if (!$client_id = $this->getClientArg('client_id')) {
+<a name="line136"></a>            $client_id = '';
+<a name="line137"></a>        }
+<a name="line138"></a>
+<a name="line139"></a>        if (!empty($this->allowForceClientIds)) {
+<a name="line140"></a>            //强制推送到多个client_id
+<a name="line141"></a>            foreach ($this->allowForceClientIds as $force_client_id) {
+<a name="line142"></a>                $client_id = $force_client_id;
+<a name="line143"></a>                $this->sendToClient($tabid, $client_id, $trace, $force_client_id);
+<a name="line144"></a>            }
+<a name="line145"></a>        } else {
+<a name="line146"></a>            $this->sendToClient($tabid, $client_id, $trace, '');
+<a name="line147"></a>        }
+<a name="line148"></a>        return true;
+<a name="line149"></a>    }
+<a name="line150"></a>
+<a name="line151"></a>    /**
+<a name="line152"></a>     * 发送给指定客户端
+<a name="line153"></a>     * @author Zjmainstay
+<a name="line154"></a>     * @param $tabid
+<a name="line155"></a>     * @param $client_id
+<a name="line156"></a>     * @param $logs
+<a name="line157"></a>     * @param $force_client_id
+<a name="line158"></a>     */
+<a name="line159"></a>    protected function sendToClient($tabid, $client_id, $logs, $force_client_id)
+<a name="line160"></a>    {
+<a name="line161"></a>        $logs = [
+<a name="line162"></a>            'tabid'           => $tabid,
+<a name="line163"></a>            'client_id'       => $client_id,
+<a name="line164"></a>            'logs'            => $logs,
+<a name="line165"></a>            'force_client_id' => $force_client_id,
+<a name="line166"></a>        ];
+<a name="line167"></a>        $msg     = @json_encode($logs);
+<a name="line168"></a>        $address = '/' . $client_id; //将client_id作为地址， server端通过地址判断将日志发布给谁
+<a name="line169"></a>        $this->send($this->config['host'], $msg, $address);
+<a name="line170"></a>    }
+<a name="line171"></a>
+<a name="line172"></a>    protected function check()
+<a name="line173"></a>    {
+<a name="line174"></a>        if (!$this->config['enable']) {
+<a name="line175"></a>            return false;
+<a name="line176"></a>        }
+<a name="line177"></a>        $tabid = $this->getClientArg('tabid');
+<a name="line178"></a>        //是否记录日志的检查
+<a name="line179"></a>        if (!$tabid && !$this->config['force_client_ids']) {
+<a name="line180"></a>            return false;
+<a name="line181"></a>        }
+<a name="line182"></a>        //用户认证
+<a name="line183"></a>        $allow_client_ids = $this->config['allow_client_ids'];
+<a name="line184"></a>        if (!empty($allow_client_ids)) {
+<a name="line185"></a>            //通过数组交集得出授权强制推送的client_id
+<a name="line186"></a>            $this->allowForceClientIds = array_intersect($allow_client_ids, $this->config['force_client_ids']);
+<a name="line187"></a>            if (!$tabid && count($this->allowForceClientIds)) {
+<a name="line188"></a>                return true;
+<a name="line189"></a>            }
+<a name="line190"></a>
+<a name="line191"></a>            $client_id = $this->getClientArg('client_id');
+<a name="line192"></a>            if (!in_array($client_id, $allow_client_ids)) {
+<a name="line193"></a>                return false;
+<a name="line194"></a>            }
+<a name="line195"></a>        } else {
+<a name="line196"></a>            $this->allowForceClientIds = $this->config['force_client_ids'];
+<a name="line197"></a>        }
+<a name="line198"></a>        return true;
+<a name="line199"></a>    }
+<a name="line200"></a>
+<a name="line201"></a>    protected function getClientArg($name)
+<a name="line202"></a>    {
+<a name="line203"></a>        static $args = [];
+<a name="line204"></a>
+<a name="line205"></a>        $key = 'HTTP_USER_AGENT';
+<a name="line206"></a>
+<a name="line207"></a>        if (isset($_SERVER['HTTP_SOCKETLOG'])) {
+<a name="line208"></a>            $key = 'HTTP_SOCKETLOG';
+<a name="line209"></a>        }
+<a name="line210"></a>
+<a name="line211"></a>        if (!isset($_SERVER[$key])) {
+<a name="line212"></a>            return null;
+<a name="line213"></a>        }
+<a name="line214"></a>        if (empty($args)) {
+<a name="line215"></a>            if (!preg_match('/SocketLog\((.*?)\)/', $_SERVER[$key], $match)) {
+<a name="line216"></a>                $args = ['tabid' => null];
+<a name="line217"></a>                return null;
+<a name="line218"></a>            }
+<a name="line219"></a>            parse_str($match[1], $args);
+<a name="line220"></a>        }
+<a name="line221"></a>        if (isset($args[$name])) {
+<a name="line222"></a>            return $args[$name];
+<a name="line223"></a>        }
+<a name="line224"></a>        return null;
+<a name="line225"></a>    }
+<a name="line226"></a>
+<a name="line227"></a>    /**
+<a name="line228"></a>     * @param null $host - $host of socket server
+<a name="line229"></a>     * @param string $message - 发送的消息
+<a name="line230"></a>     * @param string $address - 地址
+<a name="line231"></a>     * @return bool
+<a name="line232"></a>     */
+<a name="line233"></a>    protected function send($host, $message = '', $address = '/')
+<a name="line234"></a>    {
+<a name="line235"></a>        $url = 'http://' . $host . ':' . $this->port . $address;
+<a name="line236"></a>        $ch  = curl_init();
+<a name="line237"></a>        curl_setopt($ch, CURLOPT_URL, $url);
+<a name="line238"></a>        curl_setopt($ch, CURLOPT_POST, true);
+<a name="line239"></a>        curl_setopt($ch, CURLOPT_POSTFIELDS, $message);
+<a name="line240"></a>        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+<a name="line241"></a>        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+<a name="line242"></a>        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+<a name="line243"></a>        $headers = [
+<a name="line244"></a>            "Content-Type: application/json;charset=UTF-8",
+<a name="line245"></a>        ];
+<a name="line246"></a>        curl_setopt($ch, CURLOPT_HTTPHEADER, $headers); //设置header
+<a name="line247"></a>        return curl_exec($ch);
+<a name="line248"></a>    }
+<a name="line249"></a>
+<a name="line250"></a>}
+<a name="line251"></a></pre>
+<div class="header">
+<h1>ThinkPHP</h1>
+<ul>
+<li><a href="../overview-summary.html">Overview</a></li>
+<li>Package</li><li>Class</li><li>Tree</li><li><a href="../overview-files.html">Files</a></li>
+<li><a href="../deprecated-list.html">Deprecated</a></li>
+<li><a href="../todo-list.html">Todo</a></li>
+<li><a href="../index-all.html">Index</a></li>
+</ul>
+</div>
+
+<div class="small_links">
+<a href="../index.html" target="_top">Frames</a>
+<a href="../source\library\think\debug\socket.php.html" target="_top">No frames</a>
+</div>
+<hr>
+
+<p id="footer">This document was generated by <a href="http://peej.github.com/phpdoctor/">PHPDoctor: The PHP Documentation Creator</a></p>
+
+</body>
+
+</html>
